@@ -1,4 +1,4 @@
-﻿namespace InvestManagement.Models;
+﻿namespace InvestManagement.Application.Models;
 
 public record RenamePortfolioRequest
 {

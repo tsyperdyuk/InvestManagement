@@ -1,13 +1,14 @@
-﻿using InvestManagement.Interfaces;
-using InvestManagement.Models;
+﻿using InvestManagement.Domain.Model;
+using InvestManagement.Application.Interfaces;
+using InvestManagement.Application.Models;
 
-namespace InvestManagement.Services;
+namespace InvestManagement.Application.Services;
 
 public class PortfolioService : IPortfolioService
 {
     private readonly List<Portfolio> _portfolios = [];
 
-    public Task<Portfolio> CreateAsync(CreatePortfolioRequest request)
+    public Task<Portfolio> CreateAsync(CreatePortfolioRequest request, CancellationToken cancellationToken)
     {
         Portfolio portfolio = new()
         {
@@ -24,7 +25,7 @@ public class PortfolioService : IPortfolioService
         return Task.FromResult(portfolio);
     }
 
-    public Task<IReadOnlyList<Portfolio>> GetAllAsync(Guid userId)
+    public Task<IReadOnlyList<Portfolio>> GetAllAsync(Guid userId, CancellationToken cancellationToken)
     {
         IReadOnlyList<Portfolio> portfolios = _portfolios
             .Where(p => p.UserId == userId)
@@ -34,7 +35,7 @@ public class PortfolioService : IPortfolioService
         return Task.FromResult(portfolios);
     }
 
-    public Task<Portfolio?> GetByIdAsync(Guid id)
+    public Task<Portfolio?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         Portfolio? portfolio = _portfolios
             .FirstOrDefault(p => p.Id == id);
@@ -42,7 +43,7 @@ public class PortfolioService : IPortfolioService
         return Task.FromResult(portfolio);
     }
 
-    public Task<bool> RenameAsync(Guid id, RenamePortfolioRequest request)
+    public Task<bool> RenameAsync(Guid id, RenamePortfolioRequest request, CancellationToken cancellationToken)
     {
         Portfolio? portfolio = _portfolios
             .FirstOrDefault(p => p.Id == id);
@@ -58,7 +59,7 @@ public class PortfolioService : IPortfolioService
         return Task.FromResult(true);
     }
 
-    public Task<bool> DeleteAsync(Guid id)
+    public Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
         Portfolio? portfolio = _portfolios
             .FirstOrDefault(p => p.Id == id);

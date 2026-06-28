@@ -1,4 +1,4 @@
-﻿namespace InvestManagement.Models;
+﻿namespace InvestManagement.Domain.Model;
 
 public class Portfolio
 {
@@ -8,7 +8,7 @@ public class Portfolio
 
     public string Name { get; set; } = string.Empty;
 
-    public string Currency { get; set; } = "USD";
+    public PortfolioCurrency Currency { get; set; } = PortfolioCurrency.USD;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
