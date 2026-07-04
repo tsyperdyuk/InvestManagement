@@ -28,9 +28,9 @@ public class PortfoliosController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<Portfolio>>> GetAll([FromQuery] Guid userId, CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<Portfolio>>> GetAll([FromQuery] CancellationToken cancellationToken)
     {
-        IReadOnlyList<Portfolio> portfolios = await _portfolioService.GetAllAsync(userId, cancellationToken);
+        IReadOnlyList<Portfolio> portfolios = await _portfolioService.GetAllAsync(cancellationToken);
 
         return Ok(portfolios);
     }

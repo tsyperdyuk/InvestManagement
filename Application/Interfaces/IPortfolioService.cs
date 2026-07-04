@@ -7,7 +7,7 @@ public interface IPortfolioService
 {
     Task<Portfolio> CreateAsync(CreatePortfolioRequest request, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<Portfolio>> GetAllAsync(Guid userId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<Portfolio>> GetAllAsync(CancellationToken cancellationToken);
 
     Task<Portfolio?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 

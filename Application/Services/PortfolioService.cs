@@ -6,71 +6,62 @@ namespace InvestManagement.Application.Services;
 
 public class PortfolioService : IPortfolioService
 {
-    private readonly List<Portfolio> _portfolios = [];
+    private readonly IPortfolioRepository _portfolioRepository;
 
-    public Task<Portfolio> CreateAsync(CreatePortfolioRequest request, CancellationToken cancellationToken)
+    public PortfolioService(IPortfolioRepository portfolioRepository)
     {
-        Portfolio portfolio = new()
+        _portfolioRepository = portfolioRepository;
+    }
+
+    public async Task<Portfolio> CreateAsync(CreatePortfolioRequest request, CancellationToken cancellationToken)
+    {
+        var portfolio = new Portfolio
         {
             Id = Guid.NewGuid(),
-            UserId = request.UserId,
             Name = request.Name,
-            Currency = request.Currency,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            Currency = request.Currency
         };
 
-        _portfolios.Add(portfolio);
-
-        return Task.FromResult(portfolio);
+        return await _portfolioRepository.AddAsync(portfolio, cancellationToken);
     }
 
-    public Task<IReadOnlyList<Portfolio>> GetAllAsync(Guid userId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<Portfolio>> GetAllAsync(CancellationToken cancellationToken)
     {
-        IReadOnlyList<Portfolio> portfolios = _portfolios
-            .Where(p => p.UserId == userId)
-            .OrderBy(p => p.Name)
-            .ToList();
-
-        return Task.FromResult(portfolios);
+        return await _portfolioRepository.GetAllAsync(cancellationToken);
     }
 
-    public Task<Portfolio?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<Portfolio?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
-        Portfolio? portfolio = _portfolios
-            .FirstOrDefault(p => p.Id == id);
-
-        return Task.FromResult(portfolio);
+        return await _portfolioRepository.GetByIdAsync(id, cancellationToken);
     }
 
-    public Task<bool> RenameAsync(Guid id, RenamePortfolioRequest request, CancellationToken cancellationToken)
+    public async Task<bool> RenameAsync(Guid id, RenamePortfolioRequest request, CancellationToken cancellationToken)
     {
-        Portfolio? portfolio = _portfolios
-            .FirstOrDefault(p => p.Id == id);
+        var portfolio = await _portfolioRepository.GetByIdAsync(id, cancellationToken);
 
         if (portfolio is null)
         {
-            return Task.FromResult(false);
+            return false;
         }
 
         portfolio.Name = request.Name;
-        portfolio.UpdatedAt = DateTime.UtcNow;
 
-        return Task.FromResult(true);
+        await _portfolioRepository.UpdateAsync(portfolio, cancellationToken);
+
+        return true;
     }
 
-    public Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
-        Portfolio? portfolio = _portfolios
-            .FirstOrDefault(p => p.Id == id);
+        var portfolio = await _portfolioRepository.GetByIdAsync(id, cancellationToken);
 
         if (portfolio is null)
         {
-            return Task.FromResult(false);
+            return false;
         }
 
-        _portfolios.Remove(portfolio);
+        await _portfolioRepository.DeleteAsync(portfolio, cancellationToken);
 
-        return Task.FromResult(true);
+        return true;
     }
 }
