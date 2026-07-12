@@ -1,3 +1,8 @@
 <Solution>
-  <Project Path="InvestManagement/InvestManagement.csproj" />
+  <Project Path="Application/InvestManagement.Application.csproj" Id="0404ed92-e547-4620-b28b-188c73e19ead" />
+  <Project Path="Domain/InvestManagement.Domain.csproj" Id="6416795b-298f-4fb7-aa77-d6df94619c1d" />
+  <Project Path="Infrastructure/InvestManagement.Infrastructure.csproj" Id="f78469ac-4f9f-46b8-ba4b-20950c27afeb" />
+  <Project Path="InvestManagement/InvestManagement.Api.csproj">
+    <BuildDependency Project="Domain/InvestManagement.Domain.csproj" />
+  </Project>
 </Solution>

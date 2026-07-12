@@ -1,8 +1,9 @@
-﻿using InvestManagement.Interfaces;
-using InvestManagement.Models;
+﻿using InvestManagement.Domain.Model;
+using InvestManagement.Application.Interfaces;
+using InvestManagement.Application.Models;
 using Microsoft.AspNetCore.Mvc;
 
-namespace InvestManagement.Controllers;
+namespace InvestManagement.Api.Controllers;
 
 [ApiController]
 [Route("api/portfolios")]
@@ -16,9 +17,9 @@ public class PortfoliosController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<Portfolio>> Create(CreatePortfolioRequest request)
+    public async Task<ActionResult<Portfolio>> Create(CreatePortfolioRequest request, CancellationToken cancellationToken)
     {
-        Portfolio portfolio = await _portfolioService.CreateAsync(request);
+        var portfolio = await _portfolioService.CreateAsync(request, cancellationToken);
 
         return CreatedAtAction(
             nameof(GetById),
@@ -27,17 +28,17 @@ public class PortfoliosController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<Portfolio>>> GetAll([FromQuery] Guid userId)
+    public async Task<ActionResult<IReadOnlyList<Portfolio>>> GetAll([FromQuery] CancellationToken cancellationToken)
     {
-        IReadOnlyList<Portfolio> portfolios = await _portfolioService.GetAllAsync(userId);
+        IReadOnlyList<Portfolio> portfolios = await _portfolioService.GetAllAsync(cancellationToken);
 
         return Ok(portfolios);
     }
 
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<Portfolio>> GetById(Guid id)
+    public async Task<ActionResult<Portfolio>> GetById(Guid id, CancellationToken cancellationToken)
     {
-        Portfolio? portfolio = await _portfolioService.GetByIdAsync(id);
+        Portfolio? portfolio = await _portfolioService.GetByIdAsync(id, cancellationToken);
 
         if (portfolio is null)
         {
@@ -48,9 +49,9 @@ public class PortfoliosController : ControllerBase
     }
 
     [HttpPut("{id:guid}/rename")]
-    public async Task<IActionResult> Rename(Guid id, RenamePortfolioRequest request)
+    public async Task<IActionResult> Rename(Guid id, RenamePortfolioRequest request, CancellationToken cancellationToken)
     {
-        bool renamed = await _portfolioService.RenameAsync(id, request);
+        bool renamed = await _portfolioService.RenameAsync(id, request, cancellationToken);
 
         if (!renamed)
         {
@@ -61,9 +62,9 @@ public class PortfoliosController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        bool deleted = await _portfolioService.DeleteAsync(id);
+        bool deleted = await _portfolioService.DeleteAsync(id, cancellationToken);
 
         if (!deleted)
         {
