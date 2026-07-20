@@ -1,6 +1,6 @@
 ﻿using InvestManagement.Application.Interfaces;
 using InvestManagement.Application.Models;
-using InvestManagement.Application.Responses;
+using InvestManagement.Application.Services;
 using InvestManagement.Domain.Model;
 using Microsoft.AspNetCore.Mvc;
 
@@ -18,7 +18,7 @@ public class PortfoliosController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<PortfolioResponse>> Create(CreatePortfolioRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<PortfolioModel>> Create(CreatePortfolioRequest request, CancellationToken cancellationToken)
     {
         var portfolio = await _portfolioService.CreateAsync(request, cancellationToken);
 
@@ -29,15 +29,15 @@ public class PortfoliosController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<PortfolioResponse>>> GetAll([FromQuery] CancellationToken cancellationToken)
+    public async Task<ActionResult<PagedResult<PortfolioModel>>> GetAll([FromQuery] PaginationRequest pagination, CancellationToken cancellationToken)
     {
-        var portfolios = await _portfolioService.GetAllAsync(cancellationToken);
+        var result = await _portfolioService.GetAllAsync(pagination, cancellationToken);
 
-        return Ok(portfolios);
+        return Ok(result);
     }
 
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<PortfolioResponse>> GetById(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<PortfolioModel>> GetById(Guid id, CancellationToken cancellationToken)
     {
         var portfolio = await _portfolioService.GetByIdAsync(id, cancellationToken);
 

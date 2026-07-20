@@ -1,8 +1,8 @@
 ﻿using InvestManagement.Domain.Model;
 
-namespace InvestManagement.Application.Responses;
+namespace InvestManagement.Application.Models;
 
-public class PortfolioResponse
+public class PortfolioModel
 {
     public Guid Id { get; init; }
 

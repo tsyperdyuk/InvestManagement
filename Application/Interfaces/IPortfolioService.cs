@@ -1,16 +1,15 @@
 ﻿using InvestManagement.Domain.Model;
 using InvestManagement.Application.Models;
-using InvestManagement.Application.Responses;
 
 namespace InvestManagement.Application.Interfaces;
 
 public interface IPortfolioService
 {
-    Task<PortfolioResponse> CreateAsync(CreatePortfolioRequest request, CancellationToken cancellationToken);
+    Task<PortfolioModel> CreateAsync(CreatePortfolioRequest request, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<PortfolioResponse>> GetAllAsync(CancellationToken cancellationToken);
+    Task<PagedResult<PortfolioModel>> GetAllAsync(PaginationRequest pagination, CancellationToken cancellationToken);
 
-    Task<PortfolioResponse?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+    Task<PortfolioModel?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
     Task<bool> RenameAsync(Guid id, RenamePortfolioRequest request, CancellationToken cancellationToken);
 

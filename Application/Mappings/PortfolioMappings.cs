@@ -1,13 +1,13 @@
-﻿using InvestManagement.Application.Responses;
+﻿using InvestManagement.Application.Models;
 using InvestManagement.Domain.Model;
 
 namespace InvestManagement.Application.Mappings;
 
 public static class PortfolioMappings
 {
-    public static PortfolioResponse ToResponse(this Portfolio portfolio)
+    public static PortfolioModel ToResponse(this Portfolio portfolio)
     {
-        return new PortfolioResponse
+        return new PortfolioModel
         {
             Id = portfolio.Id,
             Name = portfolio.Name,

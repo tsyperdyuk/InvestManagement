@@ -29,10 +29,16 @@ public class PortfolioRepository : IPortfolioRepository
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Portfolio>> GetAllAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<Portfolio>> GetPagedAsync(
+    int pageNumber,
+    int pageSize,
+    CancellationToken cancellationToken)
     {
         return await _dbContext.Portfolios
             .AsNoTracking()
+            .OrderBy(portfolio => portfolio.Id)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(cancellationToken);
     }
 
@@ -46,5 +52,12 @@ public class PortfolioRepository : IPortfolioRepository
     {
         _dbContext.Portfolios.Remove(portfolio);
         await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public Task<int> CountAsync(
+    CancellationToken cancellationToken)
+    {
+        return _dbContext.Portfolios
+            .CountAsync(cancellationToken);
     }
 }
