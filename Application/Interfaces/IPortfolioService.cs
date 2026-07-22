@@ -5,11 +5,11 @@ namespace InvestManagement.Application.Interfaces;
 
 public interface IPortfolioService
 {
-    Task<Portfolio> CreateAsync(CreatePortfolioRequest request, CancellationToken cancellationToken);
+    Task<PortfolioModel> CreateAsync(CreatePortfolioRequest request, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<Portfolio>> GetAllAsync(CancellationToken cancellationToken);
+    Task<PagedResult<PortfolioModel>> GetAllAsync(PaginationRequest pagination, CancellationToken cancellationToken);
 
-    Task<Portfolio?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+    Task<PortfolioModel?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
     Task<bool> RenameAsync(Guid id, RenamePortfolioRequest request, CancellationToken cancellationToken);
 

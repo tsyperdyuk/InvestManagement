@@ -1,6 +1,8 @@
-﻿using InvestManagement.Domain.Model;
-using InvestManagement.Application.Interfaces;
+﻿using InvestManagement.Application.Interfaces;
+using InvestManagement.Application.Mappings;
 using InvestManagement.Application.Models;
+using InvestManagement.Application.Repositories;
+using InvestManagement.Domain.Model;
 
 namespace InvestManagement.Application.Services;
 
@@ -13,7 +15,7 @@ public class PortfolioService : IPortfolioService
         _portfolioRepository = portfolioRepository;
     }
 
-    public async Task<Portfolio> CreateAsync(CreatePortfolioRequest request, CancellationToken cancellationToken)
+    public async Task<PortfolioModel> CreateAsync(CreatePortfolioRequest request, CancellationToken cancellationToken)
     {
         var portfolio = new Portfolio
         {
@@ -22,17 +24,43 @@ public class PortfolioService : IPortfolioService
             Currency = request.Currency
         };
 
-        return await _portfolioRepository.AddAsync(portfolio, cancellationToken);
+        var createdPortfolio = await _portfolioRepository.AddAsync(
+            portfolio,
+            cancellationToken);
+
+        return createdPortfolio.ToResponse();
     }
 
-    public async Task<IReadOnlyList<Portfolio>> GetAllAsync(CancellationToken cancellationToken)
+    public async Task<PagedResult<PortfolioModel>> GetAllAsync(
+    PaginationRequest pagination,
+    CancellationToken cancellationToken)
     {
-        return await _portfolioRepository.GetAllAsync(cancellationToken);
+        var portfolios = await _portfolioRepository.GetPagedAsync(
+            pagination.PageNumber,
+            pagination.PageSize,
+            cancellationToken);
+
+        var totalCount = await _portfolioRepository.CountAsync(
+            cancellationToken);
+
+        var items = portfolios
+            .Select(portfolio => portfolio.ToResponse())
+            .ToList();
+
+        return new PagedResult<PortfolioModel>
+        {
+            Items = items,
+            PageNumber = pagination.PageNumber,
+            PageSize = pagination.PageSize,
+            TotalCount = totalCount
+        };
     }
 
-    public async Task<Portfolio?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<PortfolioModel?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
-        return await _portfolioRepository.GetByIdAsync(id, cancellationToken);
+        var portfolio = await _portfolioRepository.GetByIdAsync(id, cancellationToken);
+
+        return portfolio?.ToResponse();
     }
 
     public async Task<bool> RenameAsync(Guid id, RenamePortfolioRequest request, CancellationToken cancellationToken)

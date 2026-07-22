@@ -8,9 +8,11 @@ public interface IPortfolioRepository
 
     Task<Portfolio?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<Portfolio>> GetAllAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<Portfolio>> GetPagedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken);
 
     Task UpdateAsync(Portfolio portfolio,  CancellationToken cancellationToken);
 
     Task DeleteAsync(Portfolio portfolio, CancellationToken cancellationToken);
+
+    Task<int> CountAsync(CancellationToken cancellationToken);
 }
