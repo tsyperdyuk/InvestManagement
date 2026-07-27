@@ -48,6 +48,88 @@ namespace InvestManagement.Infrastructure.Migrations
 
                     b.ToTable("Portfolios");
                 });
+
+            modelBuilder.Entity("InvestManagement.Domain.Model.Position", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PortfolioId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<Guid>("SecurityId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SecurityId");
+
+                    b.HasIndex("PortfolioId", "SecurityId")
+                        .IsUnique();
+
+                    b.ToTable("Positions", (string)null);
+                });
+
+            modelBuilder.Entity("InvestManagement.Domain.Model.Security", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Currency")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Ticker")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Securities");
+                });
+
+            modelBuilder.Entity("InvestManagement.Domain.Model.Position", b =>
+                {
+                    b.HasOne("InvestManagement.Domain.Model.Portfolio", "Portfolio")
+                        .WithMany("Positions")
+                        .HasForeignKey("PortfolioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("InvestManagement.Domain.Model.Security", "Security")
+                        .WithMany("Positions")
+                        .HasForeignKey("SecurityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Portfolio");
+
+                    b.Navigation("Security");
+                });
+
+            modelBuilder.Entity("InvestManagement.Domain.Model.Portfolio", b =>
+                {
+                    b.Navigation("Positions");
+                });
+
+            modelBuilder.Entity("InvestManagement.Domain.Model.Security", b =>
+                {
+                    b.Navigation("Positions");
+                });
 #pragma warning restore 612, 618
         }
     }

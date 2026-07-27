@@ -13,4 +13,6 @@ public class Portfolio
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public ICollection<Position> Positions { get; private set; }
+    = new List<Position>();
 }
