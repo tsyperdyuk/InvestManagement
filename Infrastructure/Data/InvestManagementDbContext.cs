@@ -11,4 +11,16 @@ public class InvestManagementDbContext : DbContext
     }
 
     public DbSet<Portfolio> Portfolios => Set<Portfolio>();
+
+    public DbSet<Security> Securities => Set<Security>();
+
+    public DbSet<Position> Positions => Set<Position>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.ApplyConfigurationsFromAssembly(
+            typeof(InvestManagementDbContext).Assembly);
+
+        base.OnModelCreating(modelBuilder);
+    }
 }
