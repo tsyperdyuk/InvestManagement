@@ -1,11 +1,16 @@
-using InvestManagement.Application.Interfaces;
-using InvestManagement.Application.Repositories;
-using InvestManagement.Application.Services;
-using InvestManagement.Application.Validators;
-using InvestManagement.Infrastructure.Data;
 using FluentValidation;
-using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
+using InvestManagement.Application.Portfolios.Interfaces;
+using InvestManagement.Application.Portfolios.Repositories;
+using InvestManagement.Application.Portfolios.Services;
+using InvestManagement.Application.Portfolios.Validators;
+using InvestManagement.Application.Securities.Interfaces;
+using InvestManagement.Application.Securities.Repositories;
+using InvestManagement.Application.Transactions.Interfaces;
+using InvestManagement.Application.Transactions.Repositories;
+using InvestManagement.Application.Transactions.Services;
+using InvestManagement.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 using System.Text.Json.Serialization;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -28,6 +33,9 @@ builder.Services.AddValidatorsFromAssemblyContaining<CreatePortfolioRequestValid
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddScoped<IPortfolioService, PortfolioService>();
 builder.Services.AddScoped<IPortfolioRepository, PortfolioRepository>();
+builder.Services.AddScoped<ITransactionService, TransactionService>();
+builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
+builder.Services.AddScoped<ISecurityRepository, SecurityRepository>();
 
 WebApplication app = builder.Build();
 
