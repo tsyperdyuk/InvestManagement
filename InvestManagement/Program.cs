@@ -1,14 +1,14 @@
 using FluentValidation;
+using InvestManagement.Api.ExceptionHandlers;
+using InvestManagement.Application.Common.Interfaces;
 using InvestManagement.Application.Portfolios.Interfaces;
-using InvestManagement.Application.Portfolios.Repositories;
 using InvestManagement.Application.Portfolios.Services;
 using InvestManagement.Application.Portfolios.Validators;
 using InvestManagement.Application.Securities.Interfaces;
-using InvestManagement.Application.Securities.Repositories;
 using InvestManagement.Application.Transactions.Interfaces;
-using InvestManagement.Application.Transactions.Repositories;
 using InvestManagement.Application.Transactions.Services;
 using InvestManagement.Infrastructure.Data;
+using InvestManagement.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 using System.Text.Json.Serialization;
@@ -36,9 +36,13 @@ builder.Services.AddScoped<IPortfolioRepository, PortfolioRepository>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<ISecurityRepository, SecurityRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddExceptionHandler<ConcurrencyExceptionHandler>();
+builder.Services.AddProblemDetails();
 
 WebApplication app = builder.Build();
 
+app.UseExceptionHandler();
 app.UseSwagger();
 app.UseSwaggerUI();
 

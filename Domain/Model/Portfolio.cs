@@ -30,4 +30,11 @@ public class Portfolio
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public IReadOnlyCollection<Transaction> Transactions => _transactions.AsReadOnly();
+
+    public uint Version { get; private set; }
+
+    public void Touch()
+    {
+        UpdatedAt = DateTime.UtcNow;
+    }
 }

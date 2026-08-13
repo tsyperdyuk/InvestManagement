@@ -74,7 +74,7 @@ public sealed class PortfolioSummaryService(
         }
 
         var transactions = portfolio.Transactions
-            .OrderBy(transaction => transaction.OccurredAt)
+            .OrderBy(transaction => transaction.CreatedAt)
             .ToList();
 
         var cashBalance = CalculateCashBalance(transactions);
@@ -127,7 +127,7 @@ public sealed class PortfolioSummaryService(
         IGrouping<Guid, Transaction> transactionGroup)
     {
         var transactions = transactionGroup
-            .OrderBy(transaction => transaction.OccurredAt)
+            .OrderBy(transaction => transaction.CreatedAt)
             .ToList();
 
         decimal quantity = 0;
@@ -182,8 +182,8 @@ public sealed class PortfolioSummaryService(
             ?? throw new InvalidOperationException(
                 $"Security {transactionGroup.Key} was not loaded.");
 
-        // Тимчасово використовуємо ціну останньої торгової операції.
-        // Пізніше ціна надходитиме з Market Data Service.
+        // Temporarily use the price from the latest trade transaction.
+        // Later, the price will be provided by the Market Data Service.
         var currentPrice = lastTransaction.Price
             ?? throw new InvalidOperationException(
                 $"Price is missing for transaction {lastTransaction.Id}.");

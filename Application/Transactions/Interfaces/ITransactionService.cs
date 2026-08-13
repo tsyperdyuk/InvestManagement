@@ -1,12 +1,15 @@
-﻿namespace InvestManagement.Application.Transactions.Interfaces;
+﻿using InvestManagement.Application.Transactions.Models.Requests;
+using InvestManagement.Application.Transactions.Models.Responses;
+
+namespace InvestManagement.Application.Transactions.Interfaces;
 
 public interface ITransactionService
 {
-    Task DepositAsync(Guid portfolioId, decimal amount, CancellationToken cancellationToken);
+    Task<TransactionResponse> DepositAsync(DepositTransactionRequest request, CancellationToken cancellationToken);
 
-    Task WithdrawalAsync(Guid portfolioId, decimal amount, CancellationToken cancellationToken);
+    Task<TransactionResponse> WithdrawalAsync(WithdrawalTransactionRequest request, CancellationToken cancellationToken);
 
-    Task BuyAsync(Guid portfolioId, Guid securityId, decimal quantity, CancellationToken cancellationToken);
+    Task<TransactionResponse> BuyAsync(BuyTransactionRequest request, CancellationToken cancellationToken);
 
-    Task SellAsync(Guid portfolioId, Guid securityId, decimal quantity, CancellationToken cancellationToken);
+    Task<TransactionResponse> SellAsync(SellTransactionRequest request, CancellationToken cancellationToken);
 }

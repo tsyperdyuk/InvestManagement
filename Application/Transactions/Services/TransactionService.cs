@@ -1,8 +1,10 @@
-﻿using InvestManagement.Application.Portfolios.Interfaces;
+﻿using InvestManagement.Application.Common.Interfaces;
+using InvestManagement.Application.Portfolios.Interfaces;
 using InvestManagement.Application.Securities.Interfaces;
 using InvestManagement.Application.Transactions.Interfaces;
+using InvestManagement.Application.Transactions.Models.Requests;
+using InvestManagement.Application.Transactions.Models.Responses;
 using InvestManagement.Domain.Model;
-using InvestManagement.Infrastructure.Data;
 
 namespace InvestManagement.Application.Transactions.Services;
 
@@ -11,67 +13,91 @@ public sealed class TransactionService : ITransactionService
     private readonly IPortfolioRepository _portfolioRepository;
     private readonly ITransactionRepository _transactionRepository;
     private readonly ISecurityRepository _securityRepository;
-    private readonly InvestManagementDbContext _dbContext;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public TransactionService(IPortfolioRepository portfolioRepository, ITransactionRepository transactionRepository, ISecurityRepository securityRepository, InvestManagementDbContext dbContext)
+    public TransactionService(IPortfolioRepository portfolioRepository, ITransactionRepository transactionRepository, ISecurityRepository securityRepository, IUnitOfWork unitOfWork)
     {
         _portfolioRepository = portfolioRepository;
         _transactionRepository = transactionRepository;
         _securityRepository = securityRepository;
-        _dbContext = dbContext;
+        _unitOfWork = unitOfWork;
     }
 
-    public async Task DepositAsync(Guid portfolioId, decimal amount, CancellationToken cancellationToken)
+    public async Task<TransactionResponse> DepositAsync(DepositTransactionRequest request, CancellationToken cancellationToken)
     {
-        var portfolio = await _portfolioRepository.GetByIdAsync(portfolioId, cancellationToken);
+        var portfolio = await _portfolioRepository.GetByIdAsync(request.PortfolioId, cancellationToken);
 
         if (portfolio is null)
         {
             throw new InvalidOperationException("Portfolio not found.");
         }
 
-        var transaction = Transaction.CreateDeposit(portfolioId, amount, DateTime.UtcNow);
+        portfolio.Touch();
+
+        var transaction = Transaction.CreateDeposit(request.PortfolioId, request.Amount, DateTime.UtcNow);
 
         await _transactionRepository.AddAsync(transaction, cancellationToken);
 
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return new TransactionResponse(
+            transaction.Id,
+            transaction.PortfolioId,
+            transaction.SecurityId,
+            transaction.Type,
+            transaction.Amount,
+            transaction.Quantity,
+            transaction.Price,
+            transaction.CreatedAt);
     }
 
-    public async Task WithdrawalAsync(Guid portfolioId, decimal amount, CancellationToken cancellationToken)
+    public async Task<TransactionResponse> WithdrawalAsync(WithdrawalTransactionRequest request, CancellationToken cancellationToken)
     {
-        var portfolio = await _portfolioRepository.GetByIdAsync(portfolioId, cancellationToken);
+        var portfolio = await _portfolioRepository.GetByIdAsync(request.PortfolioId, cancellationToken);
 
         if (portfolio is null)
         {
             throw new InvalidOperationException("Portfolio not found.");
         }
 
-        var transactions = await _transactionRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
+        var transactions = await _transactionRepository.GetByPortfolioIdAsync(request.PortfolioId, cancellationToken);
 
         var cashBalance = CalculateCashBalance(transactions);
 
-        if (cashBalance < amount)
+        if (cashBalance < request.Amount)
         {
             throw new InvalidOperationException("Insufficient cash balance.");
         }
 
-        var transaction = Transaction.CreateWithdrawal(portfolioId, amount, DateTime.UtcNow);
+        portfolio.Touch();
+
+        var transaction = Transaction.CreateWithdrawal(request.PortfolioId, request.Amount, DateTime.UtcNow);
 
         await _transactionRepository.AddAsync(transaction, cancellationToken);
 
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return new TransactionResponse(
+            transaction.Id,
+            transaction.PortfolioId,
+            transaction.SecurityId,
+            transaction.Type,
+            transaction.Amount,
+            transaction.Quantity,
+            transaction.Price,
+            transaction.CreatedAt);
     }
 
-    public async Task BuyAsync(Guid portfolioId, Guid securityId, decimal quantity, CancellationToken cancellationToken)
+    public async Task<TransactionResponse> BuyAsync(BuyTransactionRequest request, CancellationToken cancellationToken)
     {
-        var portfolio = await _portfolioRepository.GetByIdAsync(portfolioId, cancellationToken);
+        var portfolio = await _portfolioRepository.GetByIdAsync(request.PortfolioId, cancellationToken);
 
         if (portfolio is null)
         {
             throw new InvalidOperationException("Portfolio not found.");
         }
 
-        var security = await _securityRepository.GetByIdAsync(securityId, cancellationToken);
+        var security = await _securityRepository.GetByIdAsync(request.SecurityId, cancellationToken);
 
         if (security is null)
         {
@@ -83,34 +109,45 @@ public sealed class TransactionService : ITransactionService
             throw new InvalidOperationException("Security price is not available.");
         }
 
-        var transactions = await _transactionRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
+        var transactions = await _transactionRepository.GetByPortfolioIdAsync(request.PortfolioId, cancellationToken);
 
         var cashBalance = CalculateCashBalance(transactions);
-
-        var amount = quantity * security.CurrentPrice;
+        var amount = request.Quantity * security.CurrentPrice;
 
         if (cashBalance < amount)
         {
             throw new InvalidOperationException("Insufficient cash balance.");
         }
 
-        var transaction = Transaction.CreateBuy(portfolioId, securityId, quantity, security.CurrentPrice, DateTime.UtcNow);
+        portfolio.Touch();
+
+        var transaction = Transaction.CreateBuy(request.PortfolioId, request.SecurityId, request.Quantity, security.CurrentPrice, DateTime.UtcNow);
 
         await _transactionRepository.AddAsync(transaction, cancellationToken);
 
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return new TransactionResponse(
+            transaction.Id,
+            transaction.PortfolioId,
+            transaction.SecurityId,
+            transaction.Type,
+            transaction.Amount,
+            transaction.Quantity,
+            transaction.Price,
+            transaction.CreatedAt);
     }
 
-    public async Task SellAsync(Guid portfolioId, Guid securityId, decimal quantity, CancellationToken cancellationToken)
+    public async Task<TransactionResponse> SellAsync(SellTransactionRequest request, CancellationToken cancellationToken)
     {
-        var portfolio = await _portfolioRepository.GetByIdAsync(portfolioId, cancellationToken);
+        var portfolio = await _portfolioRepository.GetByIdAsync(request.PortfolioId, cancellationToken);
 
         if (portfolio is null)
         {
             throw new InvalidOperationException("Portfolio not found.");
         }
 
-        var security = await _securityRepository.GetByIdAsync(securityId, cancellationToken);
+        var security = await _securityRepository.GetByIdAsync(request.SecurityId, cancellationToken);
 
         if (security is null)
         {
@@ -122,20 +159,32 @@ public sealed class TransactionService : ITransactionService
             throw new InvalidOperationException("Security price is not available.");
         }
 
-        var transactions = await _transactionRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
+        portfolio.Touch();
 
-        var securityQuantity = CalculateSecurityQuantity(transactions, securityId);
+        var transactions = await _transactionRepository.GetByPortfolioIdAsync(request.PortfolioId, cancellationToken);
 
-        if (securityQuantity < quantity)
+        var securityQuantity = CalculateSecurityQuantity(transactions, request.SecurityId);
+
+        if (securityQuantity < request.Quantity)
         {
             throw new InvalidOperationException("Insufficient security quantity.");
         }
 
-        var transaction = Transaction.CreateSell(portfolioId, securityId, quantity, security.CurrentPrice, DateTime.UtcNow);
+        var transaction = Transaction.CreateSell(request.PortfolioId, request.SecurityId, request.Quantity, security.CurrentPrice, DateTime.UtcNow);
 
         await _transactionRepository.AddAsync(transaction, cancellationToken);
 
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return new TransactionResponse(
+            transaction.Id,
+            transaction.PortfolioId,
+            transaction.SecurityId,
+            transaction.Type,
+            transaction.Amount,
+            transaction.Quantity,
+            transaction.Price,
+            transaction.CreatedAt);
     }
 
     private static decimal CalculateCashBalance(IEnumerable<Transaction> transactions)

@@ -23,7 +23,7 @@ public sealed class TransactionConfiguration : IEntityTypeConfiguration<Transact
         builder.Property(x => x.Price)
             .HasPrecision(18, 2);
 
-        builder.Property(x => x.OccurredAt)
+        builder.Property(x => x.CreatedAt)
             .IsRequired();
 
         builder.HasOne(x => x.Portfolio)

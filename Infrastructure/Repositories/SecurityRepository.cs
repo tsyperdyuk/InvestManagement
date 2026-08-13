@@ -3,7 +3,7 @@ using InvestManagement.Domain.Model;
 using InvestManagement.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
-namespace InvestManagement.Application.Securities.Repositories;
+namespace InvestManagement.Infrastructure.Repositories;
 
 public sealed class SecurityRepository : ISecurityRepository
 {

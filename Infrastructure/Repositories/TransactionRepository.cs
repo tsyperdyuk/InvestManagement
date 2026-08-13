@@ -3,7 +3,7 @@ using InvestManagement.Domain.Model;
 using InvestManagement.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
-namespace InvestManagement.Application.Transactions.Repositories;
+namespace InvestManagement.Infrastructure.Repositories;
 
 public sealed class TransactionRepository : ITransactionRepository
 {
@@ -18,7 +18,7 @@ public sealed class TransactionRepository : ITransactionRepository
     {
         return await _dbContext.Transactions
             .Where(x => x.PortfolioId == portfolioId)
-            .OrderBy(x => x.OccurredAt)
+            .OrderBy(x => x.CreatedAt)
             .ToListAsync(cancellationToken);
     }
 

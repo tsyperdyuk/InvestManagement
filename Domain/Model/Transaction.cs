@@ -20,7 +20,7 @@ public sealed class Transaction
 
     public decimal? Price { get; private set; }
 
-    public DateTime OccurredAt { get; private set; }
+    public DateTime CreatedAt { get; private set; }
 
     public Portfolio Portfolio { get; private set; } = null!;
 
@@ -29,7 +29,7 @@ public sealed class Transaction
     public static Transaction CreateDeposit(
         Guid portfolioId,
         decimal amount,
-        DateTime occurredAt)
+        DateTime createdAt)
     {
         ValidatePortfolioId(portfolioId);
         ValidateAmount(amount);
@@ -40,14 +40,14 @@ public sealed class Transaction
             PortfolioId = portfolioId,
             Type = TransactionType.Deposit,
             Amount = amount,
-            OccurredAt = occurredAt
+            CreatedAt = createdAt
         };
     }
 
     public static Transaction CreateWithdrawal(
         Guid portfolioId,
         decimal amount,
-        DateTime occurredAt)
+        DateTime createdAt)
     {
         ValidatePortfolioId(portfolioId);
         ValidateAmount(amount);
@@ -58,7 +58,7 @@ public sealed class Transaction
             PortfolioId = portfolioId,
             Type = TransactionType.Withdrawal,
             Amount = amount,
-            OccurredAt = occurredAt
+            CreatedAt = createdAt
         };
     }
 
@@ -67,7 +67,7 @@ public sealed class Transaction
         Guid securityId,
         decimal quantity,
         decimal price,
-        DateTime occurredAt)
+        DateTime createdAt)
     {
         return CreateTrade(
             portfolioId,
@@ -75,7 +75,7 @@ public sealed class Transaction
             TransactionType.Buy,
             quantity,
             price,
-            occurredAt);
+            createdAt);
     }
 
     public static Transaction CreateSell(
@@ -83,7 +83,7 @@ public sealed class Transaction
         Guid securityId,
         decimal quantity,
         decimal price,
-        DateTime occurredAt)
+        DateTime createdAt)
     {
         return CreateTrade(
             portfolioId,
@@ -91,7 +91,7 @@ public sealed class Transaction
             TransactionType.Sell,
             quantity,
             price,
-            occurredAt);
+            createdAt);
     }
 
     private static Transaction CreateTrade(
@@ -100,7 +100,7 @@ public sealed class Transaction
         TransactionType type,
         decimal quantity,
         decimal price,
-        DateTime occurredAt)
+        DateTime createdAt)
     {
         ValidatePortfolioId(portfolioId);
 
@@ -134,7 +134,7 @@ public sealed class Transaction
             Quantity = quantity,
             Price = price,
             Amount = quantity * price,
-            OccurredAt = occurredAt
+            CreatedAt = createdAt
         };
     }
 
