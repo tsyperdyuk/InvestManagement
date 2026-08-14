@@ -19,4 +19,9 @@ public sealed class SecurityRepository : ISecurityRepository
         return await _dbContext.Securities
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
+
+    public async Task<IReadOnlyList<Security>> GetAllAsync(CancellationToken cancellationToken)
+    {
+        return await _dbContext.Securities.ToListAsync(cancellationToken);
+    }
 }
