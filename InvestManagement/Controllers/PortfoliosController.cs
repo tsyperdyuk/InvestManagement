@@ -1,7 +1,7 @@
-﻿using InvestManagement.Application.Interfaces;
-using InvestManagement.Application.Models;
-using InvestManagement.Application.Services;
-using InvestManagement.Domain.Model;
+﻿using InvestManagement.Application.Common;
+using InvestManagement.Application.Portfolios.Interfaces;
+using InvestManagement.Application.Portfolios.Models;
+using InvestManagement.Application.Portfolios.Requests;
 using Microsoft.AspNetCore.Mvc;
 
 namespace InvestManagement.Api.Controllers;

@@ -14,7 +14,7 @@ public class InvestManagementDbContext : DbContext
 
     public DbSet<Security> Securities => Set<Security>();
 
-    public DbSet<Position> Positions => Set<Position>();
+    public DbSet<Transaction> Transactions => Set<Transaction>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -36,7 +36,8 @@ namespace InvestManagement.Infrastructure.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -44,35 +45,15 @@ namespace InvestManagement.Infrastructure.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
                     b.ToTable("Portfolios");
-                });
-
-            modelBuilder.Entity("InvestManagement.Domain.Model.Position", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("PortfolioId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("Quantity")
-                        .HasPrecision(18, 6)
-                        .HasColumnType("numeric(18,6)");
-
-                    b.Property<Guid>("SecurityId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SecurityId");
-
-                    b.HasIndex("PortfolioId", "SecurityId")
-                        .IsUnique();
-
-                    b.ToTable("Positions", (string)null);
                 });
 
             modelBuilder.Entity("InvestManagement.Domain.Model.Security", b =>
@@ -84,10 +65,16 @@ namespace InvestManagement.Infrastructure.Migrations
                     b.Property<int>("Currency")
                         .HasColumnType("integer");
 
+                    b.Property<decimal>("CurrentPrice")
+                        .HasColumnType("numeric");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<decimal?>("PreviousPrice")
+                        .HasColumnType("numeric");
 
                     b.Property<string>("Ticker")
                         .IsRequired()
@@ -102,19 +89,57 @@ namespace InvestManagement.Infrastructure.Migrations
                     b.ToTable("Securities");
                 });
 
-            modelBuilder.Entity("InvestManagement.Domain.Model.Position", b =>
+            modelBuilder.Entity("InvestManagement.Domain.Model.Transaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("PortfolioId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("Price")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal?>("Quantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<Guid?>("SecurityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PortfolioId");
+
+                    b.HasIndex("SecurityId");
+
+                    b.ToTable("Transactions");
+                });
+
+            modelBuilder.Entity("InvestManagement.Domain.Model.Transaction", b =>
                 {
                     b.HasOne("InvestManagement.Domain.Model.Portfolio", "Portfolio")
-                        .WithMany("Positions")
+                        .WithMany("Transactions")
                         .HasForeignKey("PortfolioId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("InvestManagement.Domain.Model.Security", "Security")
-                        .WithMany("Positions")
+                        .WithMany()
                         .HasForeignKey("SecurityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Portfolio");
 
@@ -123,12 +148,7 @@ namespace InvestManagement.Infrastructure.Migrations
 
             modelBuilder.Entity("InvestManagement.Domain.Model.Portfolio", b =>
                 {
-                    b.Navigation("Positions");
-                });
-
-            modelBuilder.Entity("InvestManagement.Domain.Model.Security", b =>
-                {
-                    b.Navigation("Positions");
+                    b.Navigation("Transactions");
                 });
 #pragma warning restore 612, 618
         }

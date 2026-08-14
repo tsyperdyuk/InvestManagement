@@ -12,7 +12,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Domain\InvestManagement.Domain.csproj" />
-    <ProjectReference Include="..\Infrastructure\InvestManagement.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Securities\Services\" />
   </ItemGroup>
 
 </Project>

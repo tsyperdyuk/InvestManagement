@@ -12,6 +12,7 @@ public sealed class Security
         Type = type;
         Currency = currency;
     }
+
     public Guid Id { get; private set; }
 
     [Required]
@@ -26,6 +27,18 @@ public sealed class Security
 
     public PortfolioCurrency Currency { get; private set; }
 
-    public ICollection<Position> Positions { get; private set; }
-    = new List<Position>();  
+    public decimal CurrentPrice { get; private set; }
+
+    public decimal? PreviousPrice { get; private set; }
+
+    public void UpdatePrice(decimal newPrice)
+    {
+        if (newPrice <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(newPrice));
+        }
+
+        PreviousPrice = CurrentPrice > 0 ? CurrentPrice : null;
+        CurrentPrice = newPrice;
+    }
 }
