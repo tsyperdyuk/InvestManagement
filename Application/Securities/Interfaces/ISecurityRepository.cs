@@ -5,4 +5,6 @@ namespace InvestManagement.Application.Securities.Interfaces;
 public interface ISecurityRepository
 {
     Task<Security?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<Security>> GetAllAsync(CancellationToken cancellationToken);
 }
