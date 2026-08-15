@@ -41,6 +41,7 @@ builder.Services.AddScoped<IPortfolioRepository, PortfolioRepository>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<ISecurityRepository, SecurityRepository>();
+builder.Services.AddScoped<IPortfolioSummaryService, PortfolioSummaryService>();
 builder.Services.AddScoped<IMarketDataService, MarketDataService>();    
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddExceptionHandler<ConcurrencyExceptionHandler>();

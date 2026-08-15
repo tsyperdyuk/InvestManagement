@@ -2,6 +2,7 @@
 using InvestManagement.Application.Portfolios.Interfaces;
 using InvestManagement.Application.Portfolios.Models;
 using InvestManagement.Application.Portfolios.Requests;
+using InvestManagement.Application.Portfolios.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace InvestManagement.Api.Controllers;
@@ -11,10 +12,12 @@ namespace InvestManagement.Api.Controllers;
 public class PortfoliosController : ControllerBase
 {
     private readonly IPortfolioService _portfolioService;
+    private readonly IPortfolioSummaryService _portfolioSummaryService;
 
-    public PortfoliosController(IPortfolioService portfolioService)
+    public PortfoliosController(IPortfolioService portfolioService, IPortfolioSummaryService portfolioSummaryService)
     {
         _portfolioService = portfolioService;
+        _portfolioSummaryService = portfolioSummaryService;
     }
 
     [HttpPost]
@@ -73,5 +76,22 @@ public class PortfoliosController : ControllerBase
         }
 
         return NoContent();
+    }
+
+    [HttpGet("{portfolioId:guid}/details")]
+    public async Task<ActionResult<PortfolioSummary>> GetDetails(
+    Guid portfolioId,
+    CancellationToken cancellationToken)
+    {
+        var summary = await _portfolioSummaryService.GetDetailsAsync(
+            portfolioId,
+            cancellationToken);
+
+        if (summary is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(summary);
     }
 }
