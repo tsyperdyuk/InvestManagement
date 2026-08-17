@@ -1,8 +1,8 @@
+using System.Reflection;
+using InvestManagement.Application.Portfolios.Interfaces;
 using InvestManagement.Application.Portfolios.Services;
+using Moq;
 using InvestManagement.Domain.Model;
-using InvestManagement.Infrastructure.Data;
-using InvestManagement.Infrastructure.Repositories;
-using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace InvestManagement.Application.Tests.Portfolios;
@@ -12,19 +12,13 @@ public sealed class PortfolioSummaryServiceTests
     [Fact]
     public async Task GetSummaryAsync_WithDeposit_ReturnsDepositedAmountAsCashBalance()
     {
-        await using var dbContext = CreateDbContext();
         var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP);
         var deposit = Transaction.CreateDeposit(
             portfolio.Id,
             1_000m,
             DateTime.UtcNow);
 
-        dbContext.Portfolios.Add(portfolio);
-        dbContext.Transactions.Add(deposit);
-        await dbContext.SaveChangesAsync();
-
-        var repository = new PortfolioRepository(dbContext);
-        var service = new PortfolioSummaryService(repository);
+        var service = CreateService(portfolio, [deposit]);
 
         var summary = await service.GetSummaryAsync(
             portfolio.Id,
@@ -40,7 +34,6 @@ public sealed class PortfolioSummaryServiceTests
     [Fact]
     public async Task GetSummaryAsync_WithWithdrawal_SubtractsAmountFromCashBalance()
     {
-        await using var dbContext = CreateDbContext();
         var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP);
         var deposit = Transaction.CreateDeposit(
             portfolio.Id,
@@ -51,12 +44,7 @@ public sealed class PortfolioSummaryServiceTests
             250m,
             DateTime.UtcNow);
 
-        dbContext.Portfolios.Add(portfolio);
-        dbContext.Transactions.AddRange(deposit, withdrawal);
-        await dbContext.SaveChangesAsync();
-
-        var repository = new PortfolioRepository(dbContext);
-        var service = new PortfolioSummaryService(repository);
+        var service = CreateService(portfolio, [deposit, withdrawal]);
 
         var summary = await service.GetSummaryAsync(
             portfolio.Id,
@@ -72,7 +60,6 @@ public sealed class PortfolioSummaryServiceTests
     [Fact]
     public async Task GetSummaryAsync_WithBuy_CalculatesPositionAndPortfolioValues()
     {
-        await using var dbContext = CreateDbContext();
         var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP);
         var security = new Security(
             "ACME",
@@ -92,13 +79,7 @@ public sealed class PortfolioSummaryServiceTests
             100m,
             DateTime.UtcNow);
 
-        dbContext.Portfolios.Add(portfolio);
-        dbContext.Securities.Add(security);
-        dbContext.Transactions.AddRange(deposit, buy);
-        await dbContext.SaveChangesAsync();
-
-        var repository = new PortfolioRepository(dbContext);
-        var service = new PortfolioSummaryService(repository);
+        var service = CreateService(portfolio, [deposit, buy], [security]);
 
         var summary = await service.GetDetailsAsync(
             portfolio.Id,
@@ -123,7 +104,6 @@ public sealed class PortfolioSummaryServiceTests
     [Fact]
     public async Task GetSummaryAsync_WithPartialSell_ReducesQuantityAndCostBasis()
     {
-        await using var dbContext = CreateDbContext();
         var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP);
         var security = new Security(
             "ACME",
@@ -150,13 +130,7 @@ public sealed class PortfolioSummaryServiceTests
             130m,
             transactionTime);
 
-        dbContext.Portfolios.Add(portfolio);
-        dbContext.Securities.Add(security);
-        dbContext.Transactions.AddRange(deposit, buy, sell);
-        await dbContext.SaveChangesAsync();
-
-        var repository = new PortfolioRepository(dbContext);
-        var service = new PortfolioSummaryService(repository);
+        var service = CreateService(portfolio, [deposit, buy, sell], [security]);
 
         var summary = await service.GetDetailsAsync(
             portfolio.Id,
@@ -179,7 +153,6 @@ public sealed class PortfolioSummaryServiceTests
     [Fact]
     public async Task GetSummaryAsync_WithBuysAtDifferentPrices_CalculatesWeightedAveragePrice()
     {
-        await using var dbContext = CreateDbContext();
         var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP);
         var security = new Security(
             "ACME",
@@ -206,13 +179,7 @@ public sealed class PortfolioSummaryServiceTests
             160m,
             transactionTime.AddMinutes(-1));
 
-        dbContext.Portfolios.Add(portfolio);
-        dbContext.Securities.Add(security);
-        dbContext.Transactions.AddRange(deposit, firstBuy, secondBuy);
-        await dbContext.SaveChangesAsync();
-
-        var repository = new PortfolioRepository(dbContext);
-        var service = new PortfolioSummaryService(repository);
+        var service = CreateService(portfolio, [deposit, firstBuy, secondBuy], [security]);
 
         var summary = await service.GetDetailsAsync(
             portfolio.Id,
@@ -235,7 +202,6 @@ public sealed class PortfolioSummaryServiceTests
     [Fact]
     public async Task GetSummaryAsync_WithFullSell_RemovesClosedPosition()
     {
-        await using var dbContext = CreateDbContext();
         var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP);
         var security = new Security(
             "ACME",
@@ -262,13 +228,7 @@ public sealed class PortfolioSummaryServiceTests
             130m,
             transactionTime.AddMinutes(-1));
 
-        dbContext.Portfolios.Add(portfolio);
-        dbContext.Securities.Add(security);
-        dbContext.Transactions.AddRange(deposit, buy, sell);
-        await dbContext.SaveChangesAsync();
-
-        var repository = new PortfolioRepository(dbContext);
-        var service = new PortfolioSummaryService(repository);
+        var service = CreateService(portfolio, [deposit, buy, sell], [security]);
 
         var summary = await service.GetDetailsAsync(
             portfolio.Id,
@@ -282,12 +242,42 @@ public sealed class PortfolioSummaryServiceTests
         Assert.Empty(summary.Securities);
     }
 
-    private static InvestManagementDbContext CreateDbContext()
+    private static PortfolioSummaryService CreateService(
+        Portfolio portfolio,
+        IReadOnlyCollection<Transaction> transactions,
+        IReadOnlyCollection<Security>? securities = null)
     {
-        var options = new DbContextOptionsBuilder<InvestManagementDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
+        PopulateNavigationProperties(portfolio, transactions, securities ?? []);
 
-        return new InvestManagementDbContext(options);
+        var repository = new Mock<IPortfolioRepository>();
+        repository
+            .Setup(x => x.GetSummaryDataAsync(
+                portfolio.Id,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(portfolio);
+
+        return new PortfolioSummaryService(repository.Object);
+    }
+
+    private static void PopulateNavigationProperties(
+        Portfolio portfolio,
+        IEnumerable<Transaction> transactions,
+        IReadOnlyCollection<Security> securities)
+    {
+        var portfolioTransactions = (List<Transaction>)typeof(Portfolio)
+            .GetField("_transactions", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(portfolio)!;
+
+        foreach (var transaction in transactions)
+        {
+            if (transaction.SecurityId is Guid securityId)
+            {
+                typeof(Transaction)
+                    .GetProperty(nameof(Transaction.Security))!
+                    .SetValue(transaction, securities.Single(x => x.Id == securityId));
+            }
+
+            portfolioTransactions.Add(transaction);
+        }
     }
 }

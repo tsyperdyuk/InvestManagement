@@ -6,13 +6,9 @@ using InvestManagement.Domain.Model;
 
 namespace InvestManagement.Application.Portfolios.Services;
 
-public sealed class PortfolioSummaryService(
-    IPortfolioRepository portfolioRepository)
-    : IPortfolioSummaryService
+public sealed class PortfolioSummaryService(IPortfolioRepository portfolioRepository) : IPortfolioSummaryService
 {
-    public async Task<PortfolioSummary?> GetSummaryAsync(
-        Guid portfolioId,
-        CancellationToken cancellationToken)
+    public async Task<PortfolioSummary?> GetSummaryAsync(Guid portfolioId, CancellationToken cancellationToken)
     {
         var result = await CalculateAsync(
             portfolioId,

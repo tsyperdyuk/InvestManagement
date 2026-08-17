@@ -1,50 +1,48 @@
 using InvestManagement.Application.Common;
+using InvestManagement.Application.Portfolios.Interfaces;
 using InvestManagement.Application.Portfolios.Requests;
 using InvestManagement.Application.Portfolios.Services;
 using InvestManagement.Domain.Model;
-using InvestManagement.Infrastructure.Data;
-using InvestManagement.Infrastructure.Repositories;
-using Microsoft.EntityFrameworkCore;
+using Moq;
 using Xunit;
 
 namespace InvestManagement.Application.Tests.Portfolios;
 
 public sealed class PortfolioServiceTests
 {
+    private static readonly CancellationToken Token = CancellationToken.None;
+
     [Fact]
     public async Task CreateAsync_WithValidRequest_CreatesPortfolio()
     {
-        await using var dbContext = CreateDbContext();
-        var service = CreateService(dbContext);
-        var request = new CreatePortfolioRequest
+        var repository = new Mock<IPortfolioRepository>();
+        Portfolio? added = null;
+        repository.Setup(x => x.AddAsync(It.IsAny<Portfolio>(), Token))
+            .Callback<Portfolio, CancellationToken>((portfolio, _) => added = portfolio)
+            .ReturnsAsync((Portfolio portfolio, CancellationToken _) => portfolio);
+        var service = new PortfolioService(repository.Object);
+
+        var result = await service.CreateAsync(new CreatePortfolioRequest
         {
             Name = "Retirement",
             Currency = PortfolioCurrency.GBP
-        };
-
-        var result = await service.CreateAsync(request, CancellationToken.None);
+        }, Token);
 
         Assert.NotEqual(Guid.Empty, result.Id);
         Assert.Equal("Retirement", result.Name);
         Assert.Equal(PortfolioCurrency.GBP, result.Currency);
-
-        var portfolio = await dbContext.Portfolios.SingleAsync();
-        Assert.Equal(result.Id, portfolio.Id);
+        Assert.Equal(result.Id, added?.Id);
+        repository.Verify(x => x.AddAsync(It.IsAny<Portfolio>(), Token), Times.Once);
     }
 
     [Fact]
     public async Task GetByIdAsync_WhenPortfolioExists_ReturnsPortfolio()
     {
-        await using var dbContext = CreateDbContext();
         var portfolio = new Portfolio("Retirement", PortfolioCurrency.GBP);
-        dbContext.Portfolios.Add(portfolio);
-        await dbContext.SaveChangesAsync();
+        var repository = PortfolioRepositoryReturning(portfolio);
+        var service = new PortfolioService(repository.Object);
 
-        var service = CreateService(dbContext);
-
-        var result = await service.GetByIdAsync(
-            portfolio.Id,
-            CancellationToken.None);
+        var result = await service.GetByIdAsync(portfolio.Id, Token);
 
         Assert.NotNull(result);
         Assert.Equal(portfolio.Id, result.Id);
@@ -55,63 +53,46 @@ public sealed class PortfolioServiceTests
     [Fact]
     public async Task RenameAsync_WhenPortfolioExists_UpdatesName()
     {
-        await using var dbContext = CreateDbContext();
         var portfolio = new Portfolio("Old name", PortfolioCurrency.GBP);
-        dbContext.Portfolios.Add(portfolio);
-        await dbContext.SaveChangesAsync();
-
-        var service = CreateService(dbContext);
+        var repository = PortfolioRepositoryReturning(portfolio);
+        var service = new PortfolioService(repository.Object);
 
         var renamed = await service.RenameAsync(
             portfolio.Id,
             new RenamePortfolioRequest { Name = "New name" },
-            CancellationToken.None);
+            Token);
 
         Assert.True(renamed);
-        Assert.Equal(
-            "New name",
-            (await dbContext.Portfolios.SingleAsync()).Name);
+        Assert.Equal("New name", portfolio.Name);
+        repository.Verify(x => x.UpdateAsync(portfolio, Token), Times.Once);
     }
 
     [Fact]
     public async Task DeleteAsync_WhenPortfolioExists_RemovesPortfolio()
     {
-        await using var dbContext = CreateDbContext();
         var portfolio = new Portfolio("Retirement", PortfolioCurrency.GBP);
-        dbContext.Portfolios.Add(portfolio);
-        await dbContext.SaveChangesAsync();
+        var repository = PortfolioRepositoryReturning(portfolio);
+        var service = new PortfolioService(repository.Object);
 
-        var service = CreateService(dbContext);
-
-        var deleted = await service.DeleteAsync(
-            portfolio.Id,
-            CancellationToken.None);
+        var deleted = await service.DeleteAsync(portfolio.Id, Token);
 
         Assert.True(deleted);
-        Assert.Empty(await dbContext.Portfolios.ToListAsync());
+        repository.Verify(x => x.DeleteAsync(portfolio, Token), Times.Once);
     }
 
     [Fact]
     public async Task GetAllAsync_WithPagination_ReturnsRequestedPageAndMetadata()
     {
-        await using var dbContext = CreateDbContext();
-        for (var index = 1; index <= 5; index++)
-        {
-            dbContext.Portfolios.Add(
-                new Portfolio($"Portfolio {index}", PortfolioCurrency.GBP));
-        }
-
-        await dbContext.SaveChangesAsync();
-        var service = CreateService(dbContext);
-        var pagination = new PaginationRequest
-        {
-            PageNumber = 2,
-            PageSize = 2
-        };
+        var portfolios = Enumerable.Range(1, 2)
+            .Select(index => new Portfolio($"Portfolio {index}", PortfolioCurrency.GBP))
+            .ToList();
+        var repository = new Mock<IPortfolioRepository>();
+        repository.Setup(x => x.GetPagedAsync(2, 2, Token)).ReturnsAsync(portfolios);
+        repository.Setup(x => x.CountAsync(Token)).ReturnsAsync(5);
+        var service = new PortfolioService(repository.Object);
 
         var result = await service.GetAllAsync(
-            pagination,
-            CancellationToken.None);
+            new PaginationRequest { PageNumber = 2, PageSize = 2 }, Token);
 
         Assert.Equal(2, result.Items.Count);
         Assert.Equal(2, result.PageNumber);
@@ -125,12 +106,11 @@ public sealed class PortfolioServiceTests
     [Fact]
     public async Task GetByIdAsync_WhenPortfolioDoesNotExist_ReturnsNull()
     {
-        await using var dbContext = CreateDbContext();
-        var service = CreateService(dbContext);
+        var id = Guid.NewGuid();
+        var repository = PortfolioRepositoryReturning(null, id);
+        var service = new PortfolioService(repository.Object);
 
-        var result = await service.GetByIdAsync(
-            Guid.NewGuid(),
-            CancellationToken.None);
+        var result = await service.GetByIdAsync(id, Token);
 
         Assert.Null(result);
     }
@@ -138,55 +118,50 @@ public sealed class PortfolioServiceTests
     [Fact]
     public async Task RenameAsync_WhenPortfolioDoesNotExist_ReturnsFalse()
     {
-        await using var dbContext = CreateDbContext();
-        var service = CreateService(dbContext);
+        var id = Guid.NewGuid();
+        var repository = PortfolioRepositoryReturning(null, id);
+        var service = new PortfolioService(repository.Object);
 
         var result = await service.RenameAsync(
-            Guid.NewGuid(),
-            new RenamePortfolioRequest { Name = "New name" },
-            CancellationToken.None);
+            id,
+            new RenamePortfolioRequest { Name = "New name" }, Token);
 
         Assert.False(result);
-        Assert.Empty(await dbContext.Portfolios.ToListAsync());
+        repository.Verify(
+            x => x.UpdateAsync(It.IsAny<Portfolio>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]
     public async Task DeleteAsync_WhenPortfolioDoesNotExist_ReturnsFalse()
     {
-        await using var dbContext = CreateDbContext();
-        var service = CreateService(dbContext);
+        var id = Guid.NewGuid();
+        var repository = PortfolioRepositoryReturning(null, id);
+        var service = new PortfolioService(repository.Object);
 
-        var result = await service.DeleteAsync(
-            Guid.NewGuid(),
-            CancellationToken.None);
+        var result = await service.DeleteAsync(id, Token);
 
         Assert.False(result);
-        Assert.Empty(await dbContext.Portfolios.ToListAsync());
+        repository.Verify(
+            x => x.DeleteAsync(It.IsAny<Portfolio>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]
     public void PaginationRequest_WhenPageSizeExceedsMaximum_UsesMaximumPageSize()
     {
-        var pagination = new PaginationRequest
-        {
-            PageSize = 500
-        };
+        var pagination = new PaginationRequest { PageSize = 500 };
 
         Assert.Equal(100, pagination.PageSize);
     }
 
-    private static PortfolioService CreateService(
-        InvestManagementDbContext dbContext)
+    private static Mock<IPortfolioRepository> PortfolioRepositoryReturning(
+        Portfolio? portfolio,
+        Guid? id = null)
     {
-        return new PortfolioService(new PortfolioRepository(dbContext));
-    }
-
-    private static InvestManagementDbContext CreateDbContext()
-    {
-        var options = new DbContextOptionsBuilder<InvestManagementDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-
-        return new InvestManagementDbContext(options);
+        var repository = new Mock<IPortfolioRepository>();
+        repository.Setup(x => x.GetByIdAsync(id ?? portfolio!.Id, Token))
+            .ReturnsAsync(portfolio);
+        return repository;
     }
 }

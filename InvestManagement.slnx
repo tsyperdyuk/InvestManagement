@@ -6,4 +6,5 @@
     <BuildDependency Project="Domain/InvestManagement.Domain.csproj" />
   </Project>
   <Project Path="Tests/InvestManagement.Application.Tests/InvestManagement.Application.Tests.csproj" />
+  <Project Path="Tests/InvestManagement.Infrastructure.Tests/InvestManagement.Infrastructure.Tests.csproj" />
 </Solution>
