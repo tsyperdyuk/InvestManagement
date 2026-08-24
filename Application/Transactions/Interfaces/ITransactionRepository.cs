@@ -1,7 +1,4 @@
-﻿using InvestManagement.Domain.Model;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using InvestManagement.Domain.Model;
 
 namespace InvestManagement.Application.Transactions.Interfaces;
 

@@ -1,7 +1,6 @@
-﻿using InvestManagement.Domain.Model;
 using InvestManagement.Application.Common;
-using InvestManagement.Application.Portfolios.Requests;
 using InvestManagement.Application.Portfolios.Models;
+using InvestManagement.Application.Portfolios.Requests;
 
 namespace InvestManagement.Application.Portfolios.Interfaces;
 
