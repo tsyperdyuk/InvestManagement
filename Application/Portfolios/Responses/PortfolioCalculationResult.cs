@@ -1,4 +1,5 @@
-﻿using InvestManagement.Domain.Model;
+﻿using InvestManagement.Application.Securities.Models;
+using InvestManagement.Domain.Model;
 
 namespace InvestManagement.Application.Portfolios.Responses;
 

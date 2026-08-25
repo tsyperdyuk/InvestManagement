@@ -25,7 +25,6 @@ public class PortfolioRepository : IPortfolioRepository
     public async Task<Portfolio?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         return await _dbContext.Portfolios
-            .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 

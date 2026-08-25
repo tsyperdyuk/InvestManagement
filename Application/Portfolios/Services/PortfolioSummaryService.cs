@@ -1,17 +1,14 @@
 ﻿using InvestManagement.Application.Portfolios.Interfaces;
 using InvestManagement.Application.Portfolios.Models;
 using InvestManagement.Application.Portfolios.Responses;
+using InvestManagement.Application.Securities.Models;
 using InvestManagement.Domain.Model;
 
 namespace InvestManagement.Application.Portfolios.Services;
 
-public sealed class PortfolioSummaryService(
-    IPortfolioRepository portfolioRepository)
-    : IPortfolioSummaryService
+public sealed class PortfolioSummaryService(IPortfolioRepository portfolioRepository) : IPortfolioSummaryService
 {
-    public async Task<PortfolioSummary?> GetSummaryAsync(
-        Guid portfolioId,
-        CancellationToken cancellationToken)
+    public async Task<PortfolioSummary?> GetSummaryAsync(Guid portfolioId, CancellationToken cancellationToken)
     {
         var result = await CalculateAsync(
             portfolioId,
@@ -64,9 +61,7 @@ public sealed class PortfolioSummaryService(
         Guid portfolioId,
         CancellationToken cancellationToken)
     {
-        var portfolio = await portfolioRepository.GetByIdAsync(
-            portfolioId,
-            cancellationToken);
+        var portfolio = await portfolioRepository.GetSummaryDataAsync(portfolioId, cancellationToken);
 
         if (portfolio is null)
         {
@@ -182,11 +177,13 @@ public sealed class PortfolioSummaryService(
             ?? throw new InvalidOperationException(
                 $"Security {transactionGroup.Key} was not loaded.");
 
-        // Temporarily use the price from the latest trade transaction.
-        // Later, the price will be provided by the Market Data Service.
-        var currentPrice = lastTransaction.Price
-            ?? throw new InvalidOperationException(
-                $"Price is missing for transaction {lastTransaction.Id}.");
+        var currentPrice = security.CurrentPrice;
+
+        if (currentPrice <= 0)
+        {
+            throw new InvalidOperationException(
+                $"Current price is not available for security {security.Id}.");
+        }
 
         var averagePrice =
             quantity == 0

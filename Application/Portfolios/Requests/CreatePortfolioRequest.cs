@@ -4,8 +4,6 @@ namespace InvestManagement.Application.Portfolios.Requests;
 
 public record CreatePortfolioRequest
 {
-    public required Guid UserId { get; init; }
-
     public required string Name { get; init; }
 
     public PortfolioCurrency Currency { get; init; } = PortfolioCurrency.USD;

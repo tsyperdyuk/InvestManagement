@@ -9,6 +9,8 @@ public sealed class AlphaVantageMarketDataProvider : IMarketDataProvider
 {
     private readonly HttpClient _httpClient;
     private readonly AlphaVantageOptions _options;
+    private const string GlobalQuoteProperty = "Global Quote";
+    private const string PriceProperty = "05. price";
 
     public AlphaVantageMarketDataProvider(HttpClient httpClient, IOptions<AlphaVantageOptions> options)
     {
@@ -31,12 +33,12 @@ public sealed class AlphaVantageMarketDataProvider : IMarketDataProvider
 
         using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
 
-        if (!document.RootElement.TryGetProperty("Global Quote", out var globalQuote))
+        if (!document.RootElement.TryGetProperty(GlobalQuoteProperty, out var globalQuote))
         {
             return null;
         }
 
-        if (!globalQuote.TryGetProperty("05. price", out var priceElement))
+        if (!globalQuote.TryGetProperty(PriceProperty, out var priceElement))
         {
             return null;
         }

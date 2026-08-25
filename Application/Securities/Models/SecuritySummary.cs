@@ -1,4 +1,4 @@
-﻿namespace InvestManagement.Application.Portfolios.Responses;
+﻿namespace InvestManagement.Application.Securities.Models;
 
 public sealed class SecuritySummary
 {
