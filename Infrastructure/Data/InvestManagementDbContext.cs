@@ -16,6 +16,11 @@ public class InvestManagementDbContext : DbContext
 
     public DbSet<Transaction> Transactions => Set<Transaction>();
 
+    public DbSet<Scenario> Scenarios => Set<Scenario>();
+
+    public DbSet<ScenarioOperation> ScenarioOperations =>
+        Set<ScenarioOperation>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(

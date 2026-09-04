@@ -56,6 +56,82 @@ namespace InvestManagement.Infrastructure.Migrations
                     b.ToTable("Portfolios");
                 });
 
+            modelBuilder.Entity("InvestManagement.Domain.Model.Scenario", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AppliedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("PortfolioId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PortfolioId");
+
+                    b.HasIndex("PortfolioId", "Status");
+
+                    b.ToTable("Scenarios");
+                });
+
+            modelBuilder.Entity("InvestManagement.Domain.Model.ScenarioOperation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("Quantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<Guid>("ScenarioId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("SecurityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScenarioId");
+
+                    b.HasIndex("SecurityId");
+
+                    b.HasIndex("ScenarioId", "Order")
+                        .IsUnique();
+
+                    b.ToTable("ScenarioOperations");
+                });
+
             modelBuilder.Entity("InvestManagement.Domain.Model.Security", b =>
                 {
                     b.Property<Guid>("Id")
@@ -128,6 +204,35 @@ namespace InvestManagement.Infrastructure.Migrations
                     b.ToTable("Transactions");
                 });
 
+            modelBuilder.Entity("InvestManagement.Domain.Model.Scenario", b =>
+                {
+                    b.HasOne("InvestManagement.Domain.Model.Portfolio", "Portfolio")
+                        .WithMany()
+                        .HasForeignKey("PortfolioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Portfolio");
+                });
+
+            modelBuilder.Entity("InvestManagement.Domain.Model.ScenarioOperation", b =>
+                {
+                    b.HasOne("InvestManagement.Domain.Model.Scenario", "Scenario")
+                        .WithMany("Operations")
+                        .HasForeignKey("ScenarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("InvestManagement.Domain.Model.Security", "Security")
+                        .WithMany()
+                        .HasForeignKey("SecurityId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Scenario");
+
+                    b.Navigation("Security");
+                });
+
             modelBuilder.Entity("InvestManagement.Domain.Model.Transaction", b =>
                 {
                     b.HasOne("InvestManagement.Domain.Model.Portfolio", "Portfolio")
@@ -149,6 +254,11 @@ namespace InvestManagement.Infrastructure.Migrations
             modelBuilder.Entity("InvestManagement.Domain.Model.Portfolio", b =>
                 {
                     b.Navigation("Transactions");
+                });
+
+            modelBuilder.Entity("InvestManagement.Domain.Model.Scenario", b =>
+                {
+                    b.Navigation("Operations");
                 });
 #pragma warning restore 612, 618
         }

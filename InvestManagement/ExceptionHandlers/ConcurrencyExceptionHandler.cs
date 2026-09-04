@@ -20,7 +20,7 @@ public sealed class ConcurrencyExceptionHandler : IExceptionHandler
         await httpContext.Response.WriteAsJsonAsync(
             new
             {
-                message = "Portfolio was modified by another operation. Please retry."
+                message = "Resource was modified by another operation. Please retry."
             },
             cancellationToken);
 
