@@ -1,3 +1,4 @@
+using System;
 using InvestManagement.Application.Common.Exceptions;
 using InvestManagement.Application.Common.Interfaces;
 using InvestManagement.Application.Portfolios.Interfaces;
@@ -191,9 +192,7 @@ public sealed class ScenarioService : IScenarioService
         return true;
     }
 
-    public async Task<ScenarioPreviewModel?> PreviewAsync(
-        Guid scenarioId,
-        CancellationToken cancellationToken)
+    public async Task<ScenarioPreviewModel?> PreviewAsync(Guid scenarioId, CancellationToken cancellationToken)
     {
         var scenario = await _scenarioRepository.GetByIdAsync(
             scenarioId,
@@ -210,9 +209,7 @@ public sealed class ScenarioService : IScenarioService
                 "Only draft scenarios can be previewed.");
         }
 
-        var currentPortfolio = await _portfolioSummaryService.GetDetailsAsync(
-            scenario.PortfolioId,
-            cancellationToken)
+        var currentPortfolio = await _portfolioSummaryService.GetDetailsAsync(scenario.PortfolioId, cancellationToken)
             ?? throw new NotFoundException("Portfolio not found.");
         var securities = await _securityRepository.GetAllAsync(cancellationToken);
         var securitiesById = securities.ToDictionary(security => security.Id);
@@ -230,9 +227,7 @@ public sealed class ScenarioService : IScenarioService
         };
     }
 
-    public async Task<IReadOnlyList<TransactionResponse>?> ApplyAsync(
-        Guid scenarioId,
-        CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<TransactionResponse>?> ApplyAsync(Guid scenarioId, CancellationToken cancellationToken)
     {
         var scenario = await _scenarioRepository.GetByIdAsync(
             scenarioId,
@@ -276,12 +271,9 @@ public sealed class ScenarioService : IScenarioService
                 appliedAt.AddTicks(index)))
             .ToList();
 
-        foreach (var transaction in transactions)
-        {
-            await _transactionRepository.AddAsync(
-                transaction,
-                cancellationToken);
-        }
+        await _transactionRepository.AddRangeAsync(
+            transactions,
+            cancellationToken);
 
         portfolio.Touch();
         scenario.MarkAsApplied(appliedAt);

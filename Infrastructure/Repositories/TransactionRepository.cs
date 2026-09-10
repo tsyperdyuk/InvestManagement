@@ -26,4 +26,9 @@ public sealed class TransactionRepository : ITransactionRepository
     {
         await _dbContext.Transactions.AddAsync(transaction, cancellationToken);
     }
+
+    public async Task AddRangeAsync(IEnumerable<Transaction> transactions, CancellationToken cancellationToken)
+    {
+        await _dbContext.Transactions.AddRangeAsync(transactions, cancellationToken);
+    }
 }
