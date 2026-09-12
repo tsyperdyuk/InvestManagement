@@ -38,6 +38,16 @@ public sealed class InvestManagementApiFactory : WebApplicationFactory<Program>,
         await _postgres.DisposeAsync();
     }
 
+    public async Task<Guid> GetPortfolioOwnerIdAsync(Guid portfolioId)
+    {
+        await using var scope = Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<InvestManagementDbContext>();
+        return await dbContext.Portfolios
+            .Where(portfolio => portfolio.Id == portfolioId)
+            .Select(portfolio => portfolio.UserId)
+            .SingleAsync();
+    }
+
     public async Task<Guid> SetSecurityPriceAsync(string ticker, decimal price)
     {
         await using var scope = Services.CreateAsyncScope();

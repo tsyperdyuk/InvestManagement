@@ -1,4 +1,6 @@
-﻿using InvestManagement.Application.Portfolios.Interfaces;
+using InvestManagement.Application.Common;
+using InvestManagement.Application.Common.Interfaces;
+using InvestManagement.Application.Portfolios.Interfaces;
 using InvestManagement.Application.Portfolios.Models;
 using InvestManagement.Application.Portfolios.Responses;
 using InvestManagement.Application.Securities.Models;
@@ -6,7 +8,7 @@ using InvestManagement.Domain.Model;
 
 namespace InvestManagement.Application.Portfolios.Services;
 
-public sealed class PortfolioSummaryService(IPortfolioRepository portfolioRepository) : IPortfolioSummaryService
+public sealed class PortfolioSummaryService(IPortfolioRepository portfolioRepository, ICurrentUser currentUser) : IPortfolioSummaryService
 {
     public async Task<PortfolioSummary?> GetSummaryAsync(Guid portfolioId, CancellationToken cancellationToken)
     {
@@ -61,7 +63,7 @@ public sealed class PortfolioSummaryService(IPortfolioRepository portfolioReposi
         Guid portfolioId,
         CancellationToken cancellationToken)
     {
-        var portfolio = await portfolioRepository.GetSummaryDataAsync(portfolioId, cancellationToken);
+        var portfolio = await portfolioRepository.GetSummaryDataAsync(portfolioId, currentUser.GetRequiredUserId(), cancellationToken);
 
         if (portfolio is null)
         {

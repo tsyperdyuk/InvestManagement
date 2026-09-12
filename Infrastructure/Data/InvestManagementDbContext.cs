@@ -1,9 +1,12 @@
 ﻿using InvestManagement.Domain.Model;
+using InvestManagement.Infrastructure.Identity;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace InvestManagement.Infrastructure.Data;
 
-public class InvestManagementDbContext : DbContext
+public class InvestManagementDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
 {
     public InvestManagementDbContext(DbContextOptions<InvestManagementDbContext> options)
         : base(options)
@@ -23,9 +26,9 @@ public class InvestManagementDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(InvestManagementDbContext).Assembly);
-
-        base.OnModelCreating(modelBuilder);
     }
 }

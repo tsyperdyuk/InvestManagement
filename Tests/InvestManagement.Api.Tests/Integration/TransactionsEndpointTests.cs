@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 namespace InvestManagement.Api.Tests.Integration;
 
 [Collection(ApiIntegrationCollection.Name)]
-public sealed class TransactionsEndpointTests
+public sealed class TransactionsEndpointTests : IAsyncLifetime
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -27,6 +27,14 @@ public sealed class TransactionsEndpointTests
         {
             BaseAddress = new Uri("https://localhost")
         });
+    }
+
+    public Task InitializeAsync() => TestAuthentication.SignInAsync(_client);
+
+    public Task DisposeAsync()
+    {
+        _client.Dispose();
+        return Task.CompletedTask;
     }
 
     [Fact]

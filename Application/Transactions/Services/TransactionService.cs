@@ -1,4 +1,6 @@
-﻿using InvestManagement.Application.Common.Interfaces;
+using InvestManagement.Application.Common;
+using InvestManagement.Application.Common.Exceptions;
+using InvestManagement.Application.Common.Interfaces;
 using InvestManagement.Application.Portfolios.Interfaces;
 using InvestManagement.Application.Securities.Interfaces;
 using InvestManagement.Application.Transactions.Interfaces;
@@ -14,22 +16,24 @@ public sealed class TransactionService : ITransactionService
     private readonly ITransactionRepository _transactionRepository;
     private readonly ISecurityRepository _securityRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUser _currentUser;
 
-    public TransactionService(IPortfolioRepository portfolioRepository, ITransactionRepository transactionRepository, ISecurityRepository securityRepository, IUnitOfWork unitOfWork)
+    public TransactionService(IPortfolioRepository portfolioRepository, ITransactionRepository transactionRepository, ISecurityRepository securityRepository, IUnitOfWork unitOfWork, ICurrentUser currentUser)
     {
         _portfolioRepository = portfolioRepository;
         _transactionRepository = transactionRepository;
         _securityRepository = securityRepository;
         _unitOfWork = unitOfWork;
+        _currentUser = currentUser;
     }
 
     public async Task<TransactionResponse> DepositAsync(DepositTransactionRequest request, CancellationToken cancellationToken)
     {
-        var portfolio = await _portfolioRepository.GetByIdAsync(request.PortfolioId, cancellationToken);
+        var portfolio = await _portfolioRepository.GetByIdAsync(request.PortfolioId, _currentUser.GetRequiredUserId(), cancellationToken);
 
         if (portfolio is null)
         {
-            throw new InvalidOperationException("Portfolio not found.");
+            throw new NotFoundException("Portfolio not found.");
         }
 
         portfolio.Touch();
@@ -53,11 +57,11 @@ public sealed class TransactionService : ITransactionService
 
     public async Task<TransactionResponse> WithdrawalAsync(WithdrawalTransactionRequest request, CancellationToken cancellationToken)
     {
-        var portfolio = await _portfolioRepository.GetByIdAsync(request.PortfolioId, cancellationToken);
+        var portfolio = await _portfolioRepository.GetByIdAsync(request.PortfolioId, _currentUser.GetRequiredUserId(), cancellationToken);
 
         if (portfolio is null)
         {
-            throw new InvalidOperationException("Portfolio not found.");
+            throw new NotFoundException("Portfolio not found.");
         }
 
         var transactions = await _transactionRepository.GetByPortfolioIdAsync(request.PortfolioId, cancellationToken);
@@ -90,11 +94,11 @@ public sealed class TransactionService : ITransactionService
 
     public async Task<TransactionResponse> BuyAsync(BuyTransactionRequest request, CancellationToken cancellationToken)
     {
-        var portfolio = await _portfolioRepository.GetByIdAsync(request.PortfolioId, cancellationToken);
+        var portfolio = await _portfolioRepository.GetByIdAsync(request.PortfolioId, _currentUser.GetRequiredUserId(), cancellationToken);
 
         if (portfolio is null)
         {
-            throw new InvalidOperationException("Portfolio not found.");
+            throw new NotFoundException("Portfolio not found.");
         }
 
         var security = await _securityRepository.GetByIdAsync(request.SecurityId, cancellationToken);
@@ -140,11 +144,11 @@ public sealed class TransactionService : ITransactionService
 
     public async Task<TransactionResponse> SellAsync(SellTransactionRequest request, CancellationToken cancellationToken)
     {
-        var portfolio = await _portfolioRepository.GetByIdAsync(request.PortfolioId, cancellationToken);
+        var portfolio = await _portfolioRepository.GetByIdAsync(request.PortfolioId, _currentUser.GetRequiredUserId(), cancellationToken);
 
         if (portfolio is null)
         {
-            throw new InvalidOperationException("Portfolio not found.");
+            throw new NotFoundException("Portfolio not found.");
         }
 
         var security = await _securityRepository.GetByIdAsync(request.SecurityId, cancellationToken);

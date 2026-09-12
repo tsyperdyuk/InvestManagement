@@ -1,3 +1,4 @@
+using InvestManagement.Application.Common.Interfaces;
 using System.Reflection;
 using InvestManagement.Application.Portfolios.Interfaces;
 using InvestManagement.Application.Portfolios.Services;
@@ -12,7 +13,7 @@ public sealed class PortfolioSummaryServiceTests
     [Fact]
     public async Task GetSummaryAsync_WithDeposit_ReturnsDepositedAmountAsCashBalance()
     {
-        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP);
+        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, Guid.NewGuid());
         var deposit = Transaction.CreateDeposit(
             portfolio.Id,
             1_000m,
@@ -34,7 +35,7 @@ public sealed class PortfolioSummaryServiceTests
     [Fact]
     public async Task GetSummaryAsync_WithWithdrawal_SubtractsAmountFromCashBalance()
     {
-        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP);
+        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, Guid.NewGuid());
         var deposit = Transaction.CreateDeposit(
             portfolio.Id,
             1_000m,
@@ -60,7 +61,7 @@ public sealed class PortfolioSummaryServiceTests
     [Fact]
     public async Task GetSummaryAsync_WithBuy_CalculatesPositionAndPortfolioValues()
     {
-        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP);
+        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, Guid.NewGuid());
         var security = new Security(
             "ACME",
             "Acme Corporation",
@@ -104,7 +105,7 @@ public sealed class PortfolioSummaryServiceTests
     [Fact]
     public async Task GetSummaryAsync_WithPartialSell_ReducesQuantityAndCostBasis()
     {
-        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP);
+        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, Guid.NewGuid());
         var security = new Security(
             "ACME",
             "Acme Corporation",
@@ -153,7 +154,7 @@ public sealed class PortfolioSummaryServiceTests
     [Fact]
     public async Task GetSummaryAsync_WithBuysAtDifferentPrices_CalculatesWeightedAveragePrice()
     {
-        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP);
+        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, Guid.NewGuid());
         var security = new Security(
             "ACME",
             "Acme Corporation",
@@ -202,7 +203,7 @@ public sealed class PortfolioSummaryServiceTests
     [Fact]
     public async Task GetSummaryAsync_WithFullSell_RemovesClosedPosition()
     {
-        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP);
+        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, Guid.NewGuid());
         var security = new Security(
             "ACME",
             "Acme Corporation",
@@ -253,10 +254,11 @@ public sealed class PortfolioSummaryServiceTests
         repository
             .Setup(x => x.GetSummaryDataAsync(
                 portfolio.Id,
+                portfolio.UserId,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(portfolio);
 
-        return new PortfolioSummaryService(repository.Object);
+        return new PortfolioSummaryService(repository.Object, Mock.Of<ICurrentUser>(x => x.UserId == portfolio.UserId));
     }
 
     private static void PopulateNavigationProperties(

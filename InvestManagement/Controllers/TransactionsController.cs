@@ -1,10 +1,12 @@
-﻿using InvestManagement.Api.Models.Transactions;
+using Microsoft.AspNetCore.Authorization;
+using InvestManagement.Api.Models.Transactions;
 using InvestManagement.Application.Transactions.Interfaces;
 using InvestManagement.Application.Transactions.Models.Requests;
 using Microsoft.AspNetCore.Mvc;
 
 namespace InvestManagement.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/portfolios/{portfolioId:guid}/transactions")]
 public class TransactionsController : Controller

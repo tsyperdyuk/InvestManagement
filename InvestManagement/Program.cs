@@ -15,6 +15,8 @@ using InvestManagement.Application.Transactions.Services;
 using InvestManagement.Infrastructure.Data;
 using InvestManagement.Infrastructure.MarketData;
 using InvestManagement.Infrastructure.Repositories;
+using InvestManagement.Infrastructure.Identity;
+using InvestManagement.Api.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
@@ -64,6 +66,16 @@ builder.Services.AddHttpClient<IMarketDataProvider, AlphaVantageMarketDataProvid
 
     client.BaseAddress = new Uri(options.BaseUrl);
 });
+builder.Services
+    .AddIdentityApiEndpoints<ApplicationUser>(options =>
+    {
+        options.User.RequireUniqueEmail = true;
+    })
+    .AddEntityFrameworkStores<InvestManagementDbContext>();
+
+builder.Services.AddAuthorization();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 
 WebApplication app = builder.Build();
 
@@ -80,6 +92,19 @@ app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapGroup("/api/auth")
+    .MapIdentityApi<ApplicationUser>();
+app.MapGet("/api/auth/me", (ICurrentUser currentUser) =>
+{
+    return Results.Ok(new
+    {
+        userId = currentUser.UserId
+    });
+})
+.RequireAuthorization();
 app.MapControllers();
 
 app.Run();

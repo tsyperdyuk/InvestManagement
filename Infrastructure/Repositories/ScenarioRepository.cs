@@ -32,23 +32,25 @@ public sealed class ScenarioRepository : IScenarioRepository
 
     public Task<Scenario?> GetByIdAsync(
         Guid id,
+        Guid userId,
         CancellationToken cancellationToken)
     {
         return _dbContext.Scenarios
             .Include(scenario => scenario.Operations)
             .SingleOrDefaultAsync(
-                scenario => scenario.Id == id,
+                scenario => scenario.Id == id && scenario.Portfolio.UserId == userId,
                 cancellationToken);
     }
 
     public async Task<IReadOnlyList<Scenario>> GetByPortfolioIdAsync(
         Guid portfolioId,
+        Guid userId,
         CancellationToken cancellationToken)
     {
         return await _dbContext.Scenarios
             .AsNoTracking()
             .Include(scenario => scenario.Operations)
-            .Where(scenario => scenario.PortfolioId == portfolioId)
+            .Where(scenario => scenario.PortfolioId == portfolioId && scenario.Portfolio.UserId == userId)
             .OrderByDescending(scenario => scenario.CreatedAt)
             .ToListAsync(cancellationToken);
     }

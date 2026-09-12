@@ -8,9 +8,9 @@ public interface IScenarioRepository
 
     Task AddOperationAsync(ScenarioOperation operation, CancellationToken cancellationToken);
 
-    Task<Scenario?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+    Task<Scenario?> GetByIdAsync(Guid id, Guid userId, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<Scenario>> GetByPortfolioIdAsync(Guid portfolioId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<Scenario>> GetByPortfolioIdAsync(Guid portfolioId, Guid userId, CancellationToken cancellationToken);
 
     void Delete(Scenario scenario);
 }
