@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 namespace InvestManagement.Api.Tests.Integration;
 
 [Collection(ApiIntegrationCollection.Name)]
-public sealed class PortfoliosEndpointTests
+public sealed class PortfoliosEndpointTests : IAsyncLifetime
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -19,13 +19,41 @@ public sealed class PortfoliosEndpointTests
     };
 
     private readonly HttpClient _client;
+    private readonly InvestManagementApiFactory _factory;
 
     public PortfoliosEndpointTests(InvestManagementApiFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
         });
+    }
+
+    public Task InitializeAsync() => TestAuthentication.SignInAsync(_client);
+
+    public Task DisposeAsync()
+    {
+        _client.Dispose();
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task Create_WithoutAuthentication_ReturnsUnauthorized()
+    {
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            AllowAutoRedirect = false
+        });
+
+        var response = await client.PostAsJsonAsync("/api/portfolios", new
+        {
+            Name = "Anonymous portfolio",
+            Currency = PortfolioCurrency.GBP
+        });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
@@ -54,6 +82,10 @@ public sealed class PortfoliosEndpointTests
         Assert.Equal(created.Id, persisted.Id);
         Assert.Equal(request.Name, persisted.Name);
         Assert.Equal(request.Currency, persisted.Currency);
+
+        var currentUser = await _client.GetFromJsonAsync<JsonElement>("/api/auth/me");
+        var ownerId = await _factory.GetPortfolioOwnerIdAsync(created.Id);
+        Assert.Equal(currentUser.GetProperty("userId").GetGuid(), ownerId);
     }
 
     [Fact]

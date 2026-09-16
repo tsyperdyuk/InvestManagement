@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using InvestManagement.Application.Scenarios.Interfaces;
 using InvestManagement.Application.Scenarios.Models;
 using InvestManagement.Application.Scenarios.Requests;
@@ -6,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace InvestManagement.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api")]
 public sealed class ScenariosController : ControllerBase

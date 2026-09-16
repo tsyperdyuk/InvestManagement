@@ -1,4 +1,5 @@
 using InvestManagement.Application.Common;
+using InvestManagement.Application.Common.Interfaces;
 using InvestManagement.Application.Portfolios.Interfaces;
 using InvestManagement.Application.Portfolios.Requests;
 using InvestManagement.Application.Portfolios.Services;
@@ -10,6 +11,7 @@ namespace InvestManagement.Application.Tests.Portfolios;
 
 public sealed class PortfolioServiceTests
 {
+    private static readonly Guid UserId = Guid.NewGuid();
     private static readonly CancellationToken Token = CancellationToken.None;
 
     [Fact]
@@ -20,7 +22,7 @@ public sealed class PortfolioServiceTests
         repository.Setup(x => x.AddAsync(It.IsAny<Portfolio>(), Token))
             .Callback<Portfolio, CancellationToken>((portfolio, _) => added = portfolio)
             .ReturnsAsync((Portfolio portfolio, CancellationToken _) => portfolio);
-        var service = new PortfolioService(repository.Object);
+        var service = new PortfolioService(repository.Object, Mock.Of<ICurrentUser>(x => x.UserId == UserId));
 
         var result = await service.CreateAsync(new CreatePortfolioRequest
         {
@@ -32,15 +34,16 @@ public sealed class PortfolioServiceTests
         Assert.Equal("Retirement", result.Name);
         Assert.Equal(PortfolioCurrency.GBP, result.Currency);
         Assert.Equal(result.Id, added?.Id);
+        Assert.Equal(UserId, added?.UserId);
         repository.Verify(x => x.AddAsync(It.IsAny<Portfolio>(), Token), Times.Once);
     }
 
     [Fact]
     public async Task GetByIdAsync_WhenPortfolioExists_ReturnsPortfolio()
     {
-        var portfolio = new Portfolio("Retirement", PortfolioCurrency.GBP);
+        var portfolio = new Portfolio("Retirement", PortfolioCurrency.GBP, UserId);
         var repository = PortfolioRepositoryReturning(portfolio);
-        var service = new PortfolioService(repository.Object);
+        var service = new PortfolioService(repository.Object, Mock.Of<ICurrentUser>(x => x.UserId == UserId));
 
         var result = await service.GetByIdAsync(portfolio.Id, Token);
 
@@ -53,9 +56,9 @@ public sealed class PortfolioServiceTests
     [Fact]
     public async Task RenameAsync_WhenPortfolioExists_UpdatesName()
     {
-        var portfolio = new Portfolio("Old name", PortfolioCurrency.GBP);
+        var portfolio = new Portfolio("Old name", PortfolioCurrency.GBP, UserId);
         var repository = PortfolioRepositoryReturning(portfolio);
-        var service = new PortfolioService(repository.Object);
+        var service = new PortfolioService(repository.Object, Mock.Of<ICurrentUser>(x => x.UserId == UserId));
 
         var renamed = await service.RenameAsync(
             portfolio.Id,
@@ -70,9 +73,9 @@ public sealed class PortfolioServiceTests
     [Fact]
     public async Task DeleteAsync_WhenPortfolioExists_RemovesPortfolio()
     {
-        var portfolio = new Portfolio("Retirement", PortfolioCurrency.GBP);
+        var portfolio = new Portfolio("Retirement", PortfolioCurrency.GBP, UserId);
         var repository = PortfolioRepositoryReturning(portfolio);
-        var service = new PortfolioService(repository.Object);
+        var service = new PortfolioService(repository.Object, Mock.Of<ICurrentUser>(x => x.UserId == UserId));
 
         var deleted = await service.DeleteAsync(portfolio.Id, Token);
 
@@ -84,12 +87,12 @@ public sealed class PortfolioServiceTests
     public async Task GetAllAsync_WithPagination_ReturnsRequestedPageAndMetadata()
     {
         var portfolios = Enumerable.Range(1, 2)
-            .Select(index => new Portfolio($"Portfolio {index}", PortfolioCurrency.GBP))
+            .Select(index => new Portfolio($"Portfolio {index}", PortfolioCurrency.GBP, UserId))
             .ToList();
         var repository = new Mock<IPortfolioRepository>();
-        repository.Setup(x => x.GetPagedAsync(2, 2, Token)).ReturnsAsync(portfolios);
-        repository.Setup(x => x.CountAsync(Token)).ReturnsAsync(5);
-        var service = new PortfolioService(repository.Object);
+        repository.Setup(x => x.GetPagedAsync(2, 2, UserId, Token)).ReturnsAsync(portfolios);
+        repository.Setup(x => x.CountAsync(UserId, Token)).ReturnsAsync(5);
+        var service = new PortfolioService(repository.Object, Mock.Of<ICurrentUser>(x => x.UserId == UserId));
 
         var result = await service.GetAllAsync(
             new PaginationRequest { PageNumber = 2, PageSize = 2 }, Token);
@@ -108,7 +111,7 @@ public sealed class PortfolioServiceTests
     {
         var id = Guid.NewGuid();
         var repository = PortfolioRepositoryReturning(null, id);
-        var service = new PortfolioService(repository.Object);
+        var service = new PortfolioService(repository.Object, Mock.Of<ICurrentUser>(x => x.UserId == UserId));
 
         var result = await service.GetByIdAsync(id, Token);
 
@@ -120,7 +123,7 @@ public sealed class PortfolioServiceTests
     {
         var id = Guid.NewGuid();
         var repository = PortfolioRepositoryReturning(null, id);
-        var service = new PortfolioService(repository.Object);
+        var service = new PortfolioService(repository.Object, Mock.Of<ICurrentUser>(x => x.UserId == UserId));
 
         var result = await service.RenameAsync(
             id,
@@ -137,7 +140,7 @@ public sealed class PortfolioServiceTests
     {
         var id = Guid.NewGuid();
         var repository = PortfolioRepositoryReturning(null, id);
-        var service = new PortfolioService(repository.Object);
+        var service = new PortfolioService(repository.Object, Mock.Of<ICurrentUser>(x => x.UserId == UserId));
 
         var result = await service.DeleteAsync(id, Token);
 
@@ -155,12 +158,24 @@ public sealed class PortfolioServiceTests
         Assert.Equal(100, pagination.PageSize);
     }
 
+    [Fact]
+    public async Task CreateAsync_WithoutCurrentUser_DoesNotPersistPortfolio()
+    {
+        var repository = new Mock<IPortfolioRepository>(MockBehavior.Strict);
+        var service = new PortfolioService(repository.Object, Mock.Of<ICurrentUser>());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(
+            new CreatePortfolioRequest { Name = "Retirement", Currency = PortfolioCurrency.GBP }, Token));
+
+        repository.VerifyNoOtherCalls();
+    }
+
     private static Mock<IPortfolioRepository> PortfolioRepositoryReturning(
         Portfolio? portfolio,
         Guid? id = null)
     {
         var repository = new Mock<IPortfolioRepository>();
-        repository.Setup(x => x.GetByIdAsync(id ?? portfolio!.Id, Token))
+        repository.Setup(x => x.GetByIdAsync(id ?? portfolio!.Id, UserId, Token))
             .ReturnsAsync(portfolio);
         return repository;
     }

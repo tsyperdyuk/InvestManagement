@@ -1,3 +1,4 @@
+using InvestManagement.Application.Common.Exceptions;
 using InvestManagement.Application.Common.Interfaces;
 using InvestManagement.Application.Portfolios.Interfaces;
 using InvestManagement.Application.Securities.Interfaces;
@@ -12,12 +13,13 @@ namespace InvestManagement.Application.Tests.Transactions;
 
 public sealed class TransactionServiceTests
 {
+    private static readonly Guid UserId = Guid.NewGuid();
     private static readonly CancellationToken Token = CancellationToken.None;
 
     [Fact]
     public async Task DepositAsync_WithValidRequest_CreatesDepositTransaction()
     {
-        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP);
+        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, UserId);
         var portfolioRepository = PortfolioRepositoryReturning(portfolio);
         var transactionRepository = new Mock<ITransactionRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
@@ -41,7 +43,7 @@ public sealed class TransactionServiceTests
     [Fact]
     public async Task WithdrawalAsync_WithSufficientCash_CreatesWithdrawalTransaction()
     {
-        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP);
+        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, UserId);
         var transactions = new[] { Transaction.CreateDeposit(portfolio.Id, 1_000m, DateTime.UtcNow) };
         var portfolioRepository = PortfolioRepositoryReturning(portfolio);
         var transactionRepository = TransactionRepositoryReturning(transactions);
@@ -62,7 +64,7 @@ public sealed class TransactionServiceTests
     [Fact]
     public async Task BuyAsync_WithSufficientCash_CreatesBuyAtCurrentPrice()
     {
-        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP);
+        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, UserId);
         var security = CreateSecurity(125m);
         var portfolioRepository = PortfolioRepositoryReturning(portfolio);
         var transactionRepository = TransactionRepositoryReturning(
@@ -89,7 +91,7 @@ public sealed class TransactionServiceTests
     [Fact]
     public async Task SellAsync_WithSufficientQuantity_CreatesSellAtCurrentPrice()
     {
-        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP);
+        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, UserId);
         var security = CreateSecurity(130m);
         var portfolioRepository = PortfolioRepositoryReturning(portfolio);
         var transactionRepository = TransactionRepositoryReturning([
@@ -122,7 +124,7 @@ public sealed class TransactionServiceTests
         var transactionRepository = new Mock<ITransactionRepository>();
         var service = CreateService(portfolioRepository, transactionRepository);
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var exception = await Assert.ThrowsAsync<NotFoundException>(() =>
             service.DepositAsync(new DepositTransactionRequest
             {
                 PortfolioId = id,
@@ -136,7 +138,7 @@ public sealed class TransactionServiceTests
     [Fact]
     public async Task BuyAsync_WhenSecurityDoesNotExist_ThrowsAndDoesNotCreateTransaction()
     {
-        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP);
+        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, UserId);
         var transactionRepository = new Mock<ITransactionRepository>();
         var securityRepository = SecurityRepositoryReturning(null, Guid.NewGuid());
         var service = CreateService(
@@ -157,7 +159,7 @@ public sealed class TransactionServiceTests
     [Fact]
     public async Task BuyAsync_WhenSecurityPriceIsUnavailable_ThrowsAndDoesNotCreateTransaction()
     {
-        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP);
+        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, UserId);
         var security = CreateSecurity();
         var transactionRepository = new Mock<ITransactionRepository>();
         var service = CreateService(
@@ -180,7 +182,7 @@ public sealed class TransactionServiceTests
     [Fact]
     public async Task WithdrawalAsync_WhenAmountExceedsCashBalance_ThrowsAndDoesNotCreateTransaction()
     {
-        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP);
+        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, UserId);
         var transactionRepository = TransactionRepositoryReturning(
             [Transaction.CreateDeposit(portfolio.Id, 1_000m, DateTime.UtcNow)]);
         var service = CreateService(PortfolioRepositoryReturning(portfolio), transactionRepository);
@@ -199,7 +201,7 @@ public sealed class TransactionServiceTests
     [Fact]
     public async Task SellAsync_WhenQuantityExceedsPosition_ThrowsAndDoesNotCreateTransaction()
     {
-        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP);
+        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, UserId);
         var security = CreateSecurity(100m);
         var transactionRepository = TransactionRepositoryReturning([
             Transaction.CreateBuy(portfolio.Id, security.Id, 5m, 100m, DateTime.UtcNow)]);
@@ -230,7 +232,8 @@ public sealed class TransactionServiceTests
             portfolioRepository.Object,
             transactionRepository.Object,
             (securityRepository ?? new Mock<ISecurityRepository>()).Object,
-            (unitOfWork ?? new Mock<IUnitOfWork>()).Object);
+            (unitOfWork ?? new Mock<IUnitOfWork>()).Object,
+            Mock.Of<ICurrentUser>(x => x.UserId == UserId));
     }
 
     private static Mock<IPortfolioRepository> PortfolioRepositoryReturning(
@@ -238,7 +241,7 @@ public sealed class TransactionServiceTests
         Guid? id = null)
     {
         var repository = new Mock<IPortfolioRepository>();
-        repository.Setup(x => x.GetByIdAsync(id ?? portfolio!.Id, Token)).ReturnsAsync(portfolio);
+        repository.Setup(x => x.GetByIdAsync(id ?? portfolio!.Id, UserId, Token)).ReturnsAsync(portfolio);
         return repository;
     }
 

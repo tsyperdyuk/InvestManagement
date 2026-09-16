@@ -1,3 +1,4 @@
+using InvestManagement.Application.Common;
 using System;
 using InvestManagement.Application.Common.Exceptions;
 using InvestManagement.Application.Common.Interfaces;
@@ -21,6 +22,7 @@ public sealed class ScenarioService : IScenarioService
     private readonly ISecurityRepository _securityRepository;
     private readonly ITransactionRepository _transactionRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUser _currentUser;
     private readonly ScenarioSimulationEngine _simulationEngine;
 
     public ScenarioService(
@@ -30,7 +32,7 @@ public sealed class ScenarioService : IScenarioService
         ISecurityRepository securityRepository,
         ITransactionRepository transactionRepository,
         IUnitOfWork unitOfWork,
-        ScenarioSimulationEngine simulationEngine)
+        ScenarioSimulationEngine simulationEngine, ICurrentUser currentUser)
     {
         _scenarioRepository = scenarioRepository;
         _portfolioRepository = portfolioRepository;
@@ -38,6 +40,7 @@ public sealed class ScenarioService : IScenarioService
         _securityRepository = securityRepository;
         _transactionRepository = transactionRepository;
         _unitOfWork = unitOfWork;
+        _currentUser = currentUser;
         _simulationEngine = simulationEngine;
     }
 
@@ -48,6 +51,7 @@ public sealed class ScenarioService : IScenarioService
     {
         var portfolio = await _portfolioRepository.GetByIdAsync(
             portfolioId,
+            _currentUser.GetRequiredUserId(),
             cancellationToken);
 
         if (portfolio is null)
@@ -72,6 +76,7 @@ public sealed class ScenarioService : IScenarioService
     {
         var scenario = await _scenarioRepository.GetByIdAsync(
             id,
+            _currentUser.GetRequiredUserId(),
             cancellationToken);
 
         return scenario?.ToModel();
@@ -81,8 +86,16 @@ public sealed class ScenarioService : IScenarioService
         Guid portfolioId,
         CancellationToken cancellationToken)
     {
+        var userId = _currentUser.GetRequiredUserId();
+        var portfolio = await _portfolioRepository.GetByIdAsync(portfolioId, userId, cancellationToken);
+        if (portfolio is null)
+        {
+            throw new NotFoundException("Portfolio not found.");
+        }
+
         var scenarios = await _scenarioRepository.GetByPortfolioIdAsync(
             portfolioId,
+            userId,
             cancellationToken);
 
         return scenarios
@@ -96,6 +109,7 @@ public sealed class ScenarioService : IScenarioService
     {
         var scenario = await _scenarioRepository.GetByIdAsync(
             id,
+            _currentUser.GetRequiredUserId(),
             cancellationToken);
 
         if (scenario is null)
@@ -122,6 +136,7 @@ public sealed class ScenarioService : IScenarioService
     {
         var scenario = await _scenarioRepository.GetByIdAsync(
             scenarioId,
+            _currentUser.GetRequiredUserId(),
             cancellationToken);
 
         if (scenario is null)
@@ -173,6 +188,7 @@ public sealed class ScenarioService : IScenarioService
     {
         var scenario = await _scenarioRepository.GetByIdAsync(
             scenarioId,
+            _currentUser.GetRequiredUserId(),
             cancellationToken);
 
         if (scenario is null)
@@ -196,6 +212,7 @@ public sealed class ScenarioService : IScenarioService
     {
         var scenario = await _scenarioRepository.GetByIdAsync(
             scenarioId,
+            _currentUser.GetRequiredUserId(),
             cancellationToken);
 
         if (scenario is null)
@@ -231,6 +248,7 @@ public sealed class ScenarioService : IScenarioService
     {
         var scenario = await _scenarioRepository.GetByIdAsync(
             scenarioId,
+            _currentUser.GetRequiredUserId(),
             cancellationToken);
 
         if (scenario is null)
@@ -252,6 +270,7 @@ public sealed class ScenarioService : IScenarioService
 
         var portfolio = await _portfolioRepository.GetByIdAsync(
             scenario.PortfolioId,
+            _currentUser.GetRequiredUserId(),
             cancellationToken)
             ?? throw new NotFoundException("Portfolio not found.");
         var currentPortfolio = await _portfolioSummaryService.GetDetailsAsync(

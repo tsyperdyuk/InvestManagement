@@ -3,9 +3,11 @@ using InvestManagement.Application.Portfolios.Interfaces;
 using InvestManagement.Application.Portfolios.Models;
 using InvestManagement.Application.Portfolios.Requests;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace InvestManagement.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/portfolios")]
 public class PortfoliosController : ControllerBase

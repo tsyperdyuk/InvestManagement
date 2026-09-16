@@ -8,18 +8,23 @@ public class Portfolio
     {
     }
 
-    public Portfolio(
-        string name,
-        PortfolioCurrency currency)
+    public Portfolio(string name, PortfolioCurrency currency, Guid userId)
     {
+        if (userId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "User ID must not be empty.", nameof(userId));
+        }
+
         Id = Guid.NewGuid();
         Name = name;
         Currency = currency;
+        UserId = userId;
     }
 
     public Guid Id { get; set; }
 
-    public Guid UserId { get; set; }
+    public Guid UserId { get; private set; }
 
     public string Name { get; set; } = string.Empty;
 
