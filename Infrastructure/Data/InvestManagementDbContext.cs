@@ -1,5 +1,6 @@
 ﻿using InvestManagement.Domain.Model;
 using InvestManagement.Infrastructure.Identity;
+using InvestManagement.Infrastructure.Messaging;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -21,8 +22,11 @@ public class InvestManagementDbContext : IdentityDbContext<ApplicationUser, Iden
 
     public DbSet<Scenario> Scenarios => Set<Scenario>();
 
-    public DbSet<ScenarioOperation> ScenarioOperations =>
-        Set<ScenarioOperation>();
+    public DbSet<ScenarioOperation> ScenarioOperations => Set<ScenarioOperation>();
+
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+
+    public DbSet<TransactionOperation> TransactionOperations => Set<TransactionOperation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

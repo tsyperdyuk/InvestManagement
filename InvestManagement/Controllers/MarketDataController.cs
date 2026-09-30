@@ -8,9 +8,7 @@ namespace InvestManagement.Api.Controllers;
 public sealed class MarketDataController : ControllerBase
 {
     [HttpPost("update-prices")]
-    public async Task<IActionResult> UpdatePrices(
-        [FromServices] IMarketDataService marketDataService,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> UpdatePrices([FromServices] IMarketDataService marketDataService, CancellationToken cancellationToken)
     {
         await marketDataService.UpdateSecurityPricesAsync(cancellationToken);
 

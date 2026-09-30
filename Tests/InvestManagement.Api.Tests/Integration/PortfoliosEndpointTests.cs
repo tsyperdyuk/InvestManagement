@@ -121,7 +121,7 @@ public sealed class PortfoliosEndpointTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Deposit_ThenGetDetails_ReturnsPersistedCashBalance()
+    public async Task PendingDeposit_ThenGetDetails_DoesNotChangeCashBalance()
     {
         var createResponse = await _client.PostAsJsonAsync("/api/portfolios", new
         {
@@ -135,7 +135,7 @@ public sealed class PortfoliosEndpointTests : IAsyncLifetime
             $"/api/portfolios/{portfolio.Id}/transactions/deposit",
             new { Amount = 1_250m });
 
-        Assert.Equal(HttpStatusCode.Created, depositResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Accepted, depositResponse.StatusCode);
 
         var detailsResponse = await _client.GetAsync(
             $"/api/portfolios/{portfolio.Id}/details");
@@ -143,8 +143,8 @@ public sealed class PortfoliosEndpointTests : IAsyncLifetime
 
         var details = await detailsResponse.Content.ReadFromJsonAsync<PortfolioSummary>(JsonOptions);
         Assert.NotNull(details);
-        Assert.Equal(1_250m, details.CashBalance);
-        Assert.Equal(1_250m, details.TotalPortfolioValue);
+        Assert.Equal(0m, details.CashBalance);
+        Assert.Equal(0m, details.TotalPortfolioValue);
     }
 
     [Fact]

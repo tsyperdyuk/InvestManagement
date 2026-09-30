@@ -1,5 +1,6 @@
 using InvestManagement.Application.Common.Exceptions;
 using InvestManagement.Application.Common.Interfaces;
+using InvestManagement.Application.Contracts;
 using InvestManagement.Application.Portfolios.Interfaces;
 using InvestManagement.Application.Securities.Interfaces;
 using InvestManagement.Application.Transactions.Interfaces;
@@ -17,13 +18,31 @@ public sealed class TransactionServiceTests
     private static readonly CancellationToken Token = CancellationToken.None;
 
     [Fact]
-    public async Task DepositAsync_WithValidRequest_CreatesDepositTransaction()
+    public async Task DepositAsync_WithValidRequest_QueuesOperationBeforeSaving()
     {
         var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, UserId);
         var portfolioRepository = PortfolioRepositoryReturning(portfolio);
         var transactionRepository = new Mock<ITransactionRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
-        var service = CreateService(portfolioRepository, transactionRepository, unitOfWork: unitOfWork);
+        var outboxWriter = new Mock<IOutboxWriter>();
+        var operationRepository = new Mock<ITransactionOperationRepository>();
+        TransactionOperation? operation = null;
+        ProcessTransaction? command = null;
+        operationRepository.Setup(x => x.Add(It.IsAny<TransactionOperation>()))
+            .Callback<TransactionOperation>(value => operation = value);
+        outboxWriter.Setup(x => x.Add(It.IsAny<ProcessTransaction>()))
+            .Callback<ProcessTransaction>(value => command = value);
+        unitOfWork.Setup(x => x.SaveChangesAsync(Token))
+            .Callback(() =>
+            {
+                Assert.NotNull(operation);
+                Assert.NotNull(command);
+                Assert.Equal(operation.Id, command.OperationId);
+            })
+            .ReturnsAsync(2);
+        var service = CreateService(portfolioRepository, transactionRepository,
+            unitOfWork: unitOfWork, outboxWriter: outboxWriter,
+            operationRepository: operationRepository);
 
         var response = await service.DepositAsync(new DepositTransactionRequest
         {
@@ -31,23 +50,68 @@ public sealed class TransactionServiceTests
             Amount = 1_000m
         }, Token);
 
-        Assert.Equal(portfolio.Id, response.PortfolioId);
-        Assert.Equal(TransactionType.Deposit, response.Type);
-        Assert.Equal(1_000m, response.Amount);
-        Assert.Null(response.SecurityId);
-        transactionRepository.Verify(x => x.AddAsync(
-            It.Is<Transaction>(t => t.Id == response.Id), Token), Times.Once);
+        Assert.NotNull(operation);
+        Assert.NotEqual(Guid.Empty, response.OperationId);
+        Assert.Equal(operation.Id, response.OperationId);
+        Assert.Equal(TransactionOperationStatus.Pending, response.Status);
+        Assert.Equal(TransactionOperationStatus.Pending, operation.Status);
+        Assert.Equal(portfolio.Id, operation.PortfolioId);
+        Assert.Equal(UserId, operation.UserId);
+        Assert.Equal(TransactionType.Deposit, operation.Type);
+        Assert.Equal(1_000m, operation.Amount);
+        Assert.Null(operation.TransactionId);
+        operationRepository.Verify(x => x.Add(It.IsAny<TransactionOperation>()), Times.Once);
+        outboxWriter.Verify(x => x.Add(It.IsAny<ProcessTransaction>()), Times.Once);
+        outboxWriter.VerifyNoOtherCalls();
+        transactionRepository.VerifyNoOtherCalls();
         unitOfWork.Verify(x => x.SaveChangesAsync(Token), Times.Once);
     }
 
-    [Fact]
-    public async Task WithdrawalAsync_WithSufficientCash_CreatesWithdrawalTransaction()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-100)]
+    public async Task DepositAsync_WithNonPositiveAmount_DoesNotQueueOrSave(decimal amount)
     {
         var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, UserId);
-        var transactions = new[] { Transaction.CreateDeposit(portfolio.Id, 1_000m, DateTime.UtcNow) };
+        var transactions = new Mock<ITransactionRepository>(MockBehavior.Strict);
+        var operations = new Mock<ITransactionOperationRepository>(MockBehavior.Strict);
+        var outbox = new Mock<IOutboxWriter>(MockBehavior.Strict);
+        var unitOfWork = new Mock<IUnitOfWork>(MockBehavior.Strict);
+        var service = CreateService(PortfolioRepositoryReturning(portfolio), transactions,
+            unitOfWork: unitOfWork, outboxWriter: outbox, operationRepository: operations);
+
+        await Assert.ThrowsAsync<BusinessRuleException>(() => service.DepositAsync(
+            new DepositTransactionRequest { PortfolioId = portfolio.Id, Amount = amount }, Token));
+
+        transactions.VerifyNoOtherCalls();
+        operations.VerifyNoOtherCalls();
+        outbox.VerifyNoOtherCalls();
+        unitOfWork.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task WithdrawalAsync_QueuesOperationAndCommandBeforeSaving()
+    {
+        var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, UserId);
         var portfolioRepository = PortfolioRepositoryReturning(portfolio);
-        var transactionRepository = TransactionRepositoryReturning(transactions);
-        var service = CreateService(portfolioRepository, transactionRepository);
+        var transactionRepository = new Mock<ITransactionRepository>(MockBehavior.Strict);
+        var operations = new Mock<ITransactionOperationRepository>();
+        var outbox = new Mock<IOutboxWriter>();
+        var unitOfWork = new Mock<IUnitOfWork>();
+        TransactionOperation? operation = null;
+        ProcessTransaction? command = null;
+        operations.Setup(x => x.Add(It.IsAny<TransactionOperation>()))
+            .Callback<TransactionOperation>(value => operation = value);
+        outbox.Setup(x => x.Add(It.IsAny<ProcessTransaction>()))
+            .Callback<ProcessTransaction>(value => command = value);
+        unitOfWork.Setup(x => x.SaveChangesAsync(Token)).Callback(() =>
+        {
+            Assert.NotNull(operation);
+            Assert.NotNull(command);
+            Assert.Equal(operation.Id, command.OperationId);
+        }).ReturnsAsync(2);
+        var service = CreateService(portfolioRepository, transactionRepository,
+            unitOfWork: unitOfWork, outboxWriter: outbox, operationRepository: operations);
 
         var response = await service.WithdrawalAsync(new WithdrawalTransactionRequest
         {
@@ -55,74 +119,109 @@ public sealed class TransactionServiceTests
             Amount = 250m
         }, Token);
 
-        Assert.Equal(TransactionType.Withdrawal, response.Type);
-        Assert.Equal(250m, response.Amount);
-        transactionRepository.Verify(x => x.AddAsync(
-            It.Is<Transaction>(t => t.Id == response.Id), Token), Times.Once);
+        Assert.NotNull(operation);
+        Assert.Equal(operation.Id, response.OperationId);
+        Assert.Equal(TransactionOperationStatus.Pending, response.Status);
+        Assert.Equal(TransactionType.Withdrawal, operation.Type);
+        Assert.Equal(250m, operation.Amount);
+        Assert.Equal(UserId, operation.UserId);
+        Assert.Equal(portfolio.Id, operation.PortfolioId);
+        transactionRepository.VerifyNoOtherCalls();
+        unitOfWork.Verify(x => x.SaveChangesAsync(Token), Times.Once);
     }
 
     [Fact]
-    public async Task BuyAsync_WithSufficientCash_CreatesBuyAtCurrentPrice()
+    public async Task BuyAsync_QueuesOperationAndCommandBeforeSaving()
     {
         var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, UserId);
-        var security = CreateSecurity(125m);
-        var portfolioRepository = PortfolioRepositoryReturning(portfolio);
-        var transactionRepository = TransactionRepositoryReturning(
-            [Transaction.CreateDeposit(portfolio.Id, 2_000m, DateTime.UtcNow)]);
-        var securityRepository = SecurityRepositoryReturning(security);
-        var service = CreateService(portfolioRepository, transactionRepository, securityRepository);
+        var security = CreateSecurity();
+        var transactions = new Mock<ITransactionRepository>(MockBehavior.Strict);
+        var operations = new Mock<ITransactionOperationRepository>();
+        var outbox = new Mock<IOutboxWriter>();
+        var unitOfWork = new Mock<IUnitOfWork>();
+        TransactionOperation? operation = null;
+        ProcessTransaction? command = null;
+        operations.Setup(x => x.Add(It.IsAny<TransactionOperation>()))
+            .Callback<TransactionOperation>(value => operation = value);
+        outbox.Setup(x => x.Add(It.IsAny<ProcessTransaction>()))
+            .Callback<ProcessTransaction>(value => command = value);
+        unitOfWork.Setup(x => x.SaveChangesAsync(Token)).Callback(() =>
+        {
+            Assert.NotNull(operation);
+            Assert.NotNull(command);
+            Assert.Equal(operation.Id, command.OperationId);
+        }).ReturnsAsync(2);
+        var service = CreateService(PortfolioRepositoryReturning(portfolio), transactions,
+            SecurityRepositoryReturning(security), unitOfWork, outbox, operations);
 
         var response = await service.BuyAsync(new BuyTransactionRequest
         {
-            PortfolioId = portfolio.Id,
-            SecurityId = security.Id,
-            Quantity = 4m
+            PortfolioId = portfolio.Id, SecurityId = security.Id, Quantity = 4m
         }, Token);
 
-        Assert.Equal(TransactionType.Buy, response.Type);
-        Assert.Equal(security.Id, response.SecurityId);
-        Assert.Equal(4m, response.Quantity);
-        Assert.Equal(125m, response.Price);
-        Assert.Equal(500m, response.Amount);
-        transactionRepository.Verify(x => x.AddAsync(
-            It.Is<Transaction>(t => t.Id == response.Id), Token), Times.Once);
+        Assert.NotNull(operation);
+        Assert.Equal(operation.Id, response.OperationId);
+        Assert.Equal(TransactionOperationStatus.Pending, response.Status);
+        Assert.Equal(TransactionType.Buy, operation.Type);
+        Assert.Equal(security.Id, operation.SecurityId);
+        Assert.Equal(4m, operation.Quantity);
+        Assert.Equal(UserId, operation.UserId);
+        Assert.Equal(portfolio.Id, operation.PortfolioId);
+        Assert.Null(operation.TransactionId);
+        transactions.VerifyNoOtherCalls();
+        unitOfWork.Verify(x => x.SaveChangesAsync(Token), Times.Once);
     }
-
     [Fact]
-    public async Task SellAsync_WithSufficientQuantity_CreatesSellAtCurrentPrice()
+    public async Task SellAsync_QueuesOperationAndCommandBeforeSaving()
     {
         var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, UserId);
-        var security = CreateSecurity(130m);
-        var portfolioRepository = PortfolioRepositoryReturning(portfolio);
-        var transactionRepository = TransactionRepositoryReturning([
-            Transaction.CreateBuy(portfolio.Id, security.Id, 5m, 100m, DateTime.UtcNow)]);
-        var service = CreateService(
-            portfolioRepository,
-            transactionRepository,
-            SecurityRepositoryReturning(security));
+        var security = CreateSecurity();
+        var transactions = new Mock<ITransactionRepository>(MockBehavior.Strict);
+        var operations = new Mock<ITransactionOperationRepository>();
+        var outbox = new Mock<IOutboxWriter>();
+        var unitOfWork = new Mock<IUnitOfWork>();
+        TransactionOperation? operation = null;
+        ProcessTransaction? command = null;
+        operations.Setup(x => x.Add(It.IsAny<TransactionOperation>()))
+            .Callback<TransactionOperation>(value => operation = value);
+        outbox.Setup(x => x.Add(It.IsAny<ProcessTransaction>()))
+            .Callback<ProcessTransaction>(value => command = value);
+        unitOfWork.Setup(x => x.SaveChangesAsync(Token)).Callback(() =>
+        {
+            Assert.NotNull(operation);
+            Assert.NotNull(command);
+            Assert.Equal(operation.Id, command.OperationId);
+        }).ReturnsAsync(2);
+        var service = CreateService(PortfolioRepositoryReturning(portfolio), transactions,
+            SecurityRepositoryReturning(security), unitOfWork, outbox, operations);
 
         var response = await service.SellAsync(new SellTransactionRequest
         {
-            PortfolioId = portfolio.Id,
-            SecurityId = security.Id,
-            Quantity = 2m
+            PortfolioId = portfolio.Id, SecurityId = security.Id, Quantity = 4m
         }, Token);
 
-        Assert.Equal(TransactionType.Sell, response.Type);
-        Assert.Equal(2m, response.Quantity);
-        Assert.Equal(130m, response.Price);
-        Assert.Equal(260m, response.Amount);
-        transactionRepository.Verify(x => x.AddAsync(
-            It.Is<Transaction>(t => t.Id == response.Id), Token), Times.Once);
+        Assert.NotNull(operation);
+        Assert.Equal(operation.Id, response.OperationId);
+        Assert.Equal(TransactionOperationStatus.Pending, response.Status);
+        Assert.Equal(TransactionType.Sell, operation.Type);
+        Assert.Equal(security.Id, operation.SecurityId);
+        Assert.Equal(4m, operation.Quantity);
+        Assert.Equal(UserId, operation.UserId);
+        Assert.Equal(portfolio.Id, operation.PortfolioId);
+        Assert.Null(operation.TransactionId);
+        transactions.VerifyNoOtherCalls();
+        unitOfWork.Verify(x => x.SaveChangesAsync(Token), Times.Once);
     }
-
     [Fact]
     public async Task DepositAsync_WhenPortfolioDoesNotExist_ThrowsAndDoesNotCreateTransaction()
     {
         var id = Guid.NewGuid();
         var portfolioRepository = PortfolioRepositoryReturning(null, id);
         var transactionRepository = new Mock<ITransactionRepository>();
-        var service = CreateService(portfolioRepository, transactionRepository);
+        var outboxWriter = new Mock<IOutboxWriter>(MockBehavior.Strict);
+        var unitOfWork = new Mock<IUnitOfWork>(MockBehavior.Strict);
+        var service = CreateService(portfolioRepository, transactionRepository,
+            unitOfWork: unitOfWork, outboxWriter: outboxWriter);
 
         var exception = await Assert.ThrowsAsync<NotFoundException>(() =>
             service.DepositAsync(new DepositTransactionRequest
@@ -133,6 +232,8 @@ public sealed class TransactionServiceTests
 
         Assert.Equal("Portfolio not found.", exception.Message);
         VerifyNoTransactionAdded(transactionRepository);
+        outboxWriter.VerifyNoOtherCalls();
+        unitOfWork.VerifyNoOtherCalls();
     }
 
     [Fact]
@@ -144,7 +245,7 @@ public sealed class TransactionServiceTests
         var service = CreateService(
             PortfolioRepositoryReturning(portfolio), transactionRepository, securityRepository);
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var exception = await Assert.ThrowsAsync<NotFoundException>(() =>
             service.BuyAsync(new BuyTransactionRequest
             {
                 PortfolioId = portfolio.Id,
@@ -156,84 +257,96 @@ public sealed class TransactionServiceTests
         VerifyNoTransactionAdded(transactionRepository);
     }
 
-    [Fact]
-    public async Task BuyAsync_WhenSecurityPriceIsUnavailable_ThrowsAndDoesNotCreateTransaction()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task BuyAsync_WithInvalidQuantity_DoesNotQueueOrSave(decimal quantity)
     {
         var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, UserId);
-        var security = CreateSecurity();
-        var transactionRepository = new Mock<ITransactionRepository>();
-        var service = CreateService(
-            PortfolioRepositoryReturning(portfolio),
-            transactionRepository,
-            SecurityRepositoryReturning(security));
+        var transactions = new Mock<ITransactionRepository>(MockBehavior.Strict);
+        var operations = new Mock<ITransactionOperationRepository>(MockBehavior.Strict);
+        var outbox = new Mock<IOutboxWriter>(MockBehavior.Strict);
+        var unitOfWork = new Mock<IUnitOfWork>(MockBehavior.Strict);
+        var service = CreateService(PortfolioRepositoryReturning(portfolio), transactions,
+            unitOfWork: unitOfWork, outboxWriter: outbox, operationRepository: operations);
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.BuyAsync(new BuyTransactionRequest
+        await Assert.ThrowsAsync<BusinessRuleException>(() => service.BuyAsync(
+            new BuyTransactionRequest
             {
-                PortfolioId = portfolio.Id,
-                SecurityId = security.Id,
-                Quantity = 1m
+                PortfolioId = portfolio.Id, SecurityId = Guid.NewGuid(), Quantity = quantity
             }, Token));
 
-        Assert.Equal("Security price is not available.", exception.Message);
-        VerifyNoTransactionAdded(transactionRepository);
+        operations.VerifyNoOtherCalls();
+        outbox.VerifyNoOtherCalls();
+        unitOfWork.VerifyNoOtherCalls();
+        transactions.VerifyNoOtherCalls();
     }
-
-    [Fact]
-    public async Task WithdrawalAsync_WhenAmountExceedsCashBalance_ThrowsAndDoesNotCreateTransaction()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task WithdrawalAsync_WithInvalidAmount_DoesNotQueueOrSave(decimal amount)
     {
         var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, UserId);
-        var transactionRepository = TransactionRepositoryReturning(
-            [Transaction.CreateDeposit(portfolio.Id, 1_000m, DateTime.UtcNow)]);
-        var service = CreateService(PortfolioRepositoryReturning(portfolio), transactionRepository);
+        var transactionRepository = new Mock<ITransactionRepository>(MockBehavior.Strict);
+        var operations = new Mock<ITransactionOperationRepository>(MockBehavior.Strict);
+        var outbox = new Mock<IOutboxWriter>(MockBehavior.Strict);
+        var unitOfWork = new Mock<IUnitOfWork>(MockBehavior.Strict);
+        var service = CreateService(PortfolioRepositoryReturning(portfolio), transactionRepository,
+            unitOfWork: unitOfWork, outboxWriter: outbox, operationRepository: operations);
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        await Assert.ThrowsAsync<BusinessRuleException>(() =>
             service.WithdrawalAsync(new WithdrawalTransactionRequest
             {
                 PortfolioId = portfolio.Id,
-                Amount = 1_001m
+                Amount = amount
             }, Token));
 
-        Assert.Equal("Insufficient cash balance.", exception.Message);
-        VerifyNoTransactionAdded(transactionRepository);
+        transactionRepository.VerifyNoOtherCalls();
+        operations.VerifyNoOtherCalls();
+        outbox.VerifyNoOtherCalls();
+        unitOfWork.VerifyNoOtherCalls();
     }
 
-    [Fact]
-    public async Task SellAsync_WhenQuantityExceedsPosition_ThrowsAndDoesNotCreateTransaction()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task SellAsync_WithInvalidQuantity_DoesNotQueueOrSave(decimal quantity)
     {
         var portfolio = new Portfolio("Main portfolio", PortfolioCurrency.GBP, UserId);
-        var security = CreateSecurity(100m);
-        var transactionRepository = TransactionRepositoryReturning([
-            Transaction.CreateBuy(portfolio.Id, security.Id, 5m, 100m, DateTime.UtcNow)]);
-        var service = CreateService(
-            PortfolioRepositoryReturning(portfolio),
-            transactionRepository,
-            SecurityRepositoryReturning(security));
+        var transactions = new Mock<ITransactionRepository>(MockBehavior.Strict);
+        var operations = new Mock<ITransactionOperationRepository>(MockBehavior.Strict);
+        var outbox = new Mock<IOutboxWriter>(MockBehavior.Strict);
+        var unitOfWork = new Mock<IUnitOfWork>(MockBehavior.Strict);
+        var service = CreateService(PortfolioRepositoryReturning(portfolio), transactions,
+            unitOfWork: unitOfWork, outboxWriter: outbox, operationRepository: operations);
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.SellAsync(new SellTransactionRequest
+        await Assert.ThrowsAsync<BusinessRuleException>(() => service.SellAsync(
+            new SellTransactionRequest
             {
-                PortfolioId = portfolio.Id,
-                SecurityId = security.Id,
-                Quantity = 6m
+                PortfolioId = portfolio.Id, SecurityId = Guid.NewGuid(), Quantity = quantity
             }, Token));
 
-        Assert.Equal("Insufficient security quantity.", exception.Message);
-        VerifyNoTransactionAdded(transactionRepository);
+        operations.VerifyNoOtherCalls();
+        outbox.VerifyNoOtherCalls();
+        unitOfWork.VerifyNoOtherCalls();
+        transactions.VerifyNoOtherCalls();
     }
-
     private static TransactionService CreateService(
         Mock<IPortfolioRepository> portfolioRepository,
         Mock<ITransactionRepository> transactionRepository,
         Mock<ISecurityRepository>? securityRepository = null,
-        Mock<IUnitOfWork>? unitOfWork = null)
+        Mock<IUnitOfWork>? unitOfWork = null,
+        Mock<IOutboxWriter>? outboxWriter = null,
+        Mock<ITransactionOperationRepository>? operationRepository = null)
     {
         return new TransactionService(
             portfolioRepository.Object,
             transactionRepository.Object,
             (securityRepository ?? new Mock<ISecurityRepository>()).Object,
+            (operationRepository ?? new Mock<ITransactionOperationRepository>()).Object,
             (unitOfWork ?? new Mock<IUnitOfWork>()).Object,
-            Mock.Of<ICurrentUser>(x => x.UserId == UserId));
+            Mock.Of<ICurrentUser>(x => x.UserId == UserId),
+            (outboxWriter ?? new Mock<IOutboxWriter>()).Object);
     }
 
     private static Mock<IPortfolioRepository> PortfolioRepositoryReturning(

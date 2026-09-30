@@ -1,6 +1,7 @@
 using DotNet.Testcontainers.Builders;
 using InvestManagement.Application.MarketData.Interfaces;
 using InvestManagement.Infrastructure.Data;
+using InvestManagement.Domain.Model;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -36,6 +37,14 @@ public sealed class InvestManagementApiFactory : WebApplicationFactory<Program>,
     {
         await DisposeAsync();
         await _postgres.DisposeAsync();
+    }
+
+    public async Task SeedCompletedDepositAsync(Guid portfolioId, decimal amount)
+    {
+        await using var scope = Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<InvestManagementDbContext>();
+        dbContext.Transactions.Add(Transaction.CreateDeposit(portfolioId, amount, DateTime.UtcNow));
+        await dbContext.SaveChangesAsync();
     }
 
     public async Task<Guid> GetPortfolioOwnerIdAsync(Guid portfolioId)

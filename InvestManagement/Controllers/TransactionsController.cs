@@ -27,9 +27,9 @@ public class TransactionsController : Controller
             Amount = request.Amount
         };
 
-        var transaction = await _transactionService.DepositAsync(serviceRequest, cancellationToken);
+        var operation = await _transactionService.DepositAsync(serviceRequest, cancellationToken);
 
-        return StatusCode(StatusCodes.Status201Created, transaction);
+        return Accepted(operation);
     }
 
     [HttpPost("withdraw")]
@@ -41,9 +41,9 @@ public class TransactionsController : Controller
             Amount = request.Amount
         };
 
-        var transaction = await _transactionService.WithdrawalAsync(serviceRequest, cancellationToken);
+        var operation = await _transactionService.WithdrawalAsync(serviceRequest, cancellationToken);
 
-        return StatusCode(StatusCodes.Status201Created, transaction);
+        return Accepted(operation);
     }
 
     [HttpPost("buy")]
@@ -56,9 +56,9 @@ public class TransactionsController : Controller
             Quantity = request.Quantity
         };
 
-        var transaction = await _transactionService.BuyAsync(serviceRequest, cancellationToken);
+        var operation = await _transactionService.BuyAsync(serviceRequest, cancellationToken);
 
-        return StatusCode(StatusCodes.Status201Created, transaction);
+        return Accepted(operation);
     }
 
     [HttpPost("sell")]
@@ -71,8 +71,8 @@ public class TransactionsController : Controller
             Quantity = request.Quantity
         };
 
-        var transaction = await _transactionService.SellAsync(serviceRequest, cancellationToken);
+        var operation = await _transactionService.SellAsync(serviceRequest, cancellationToken);
 
-        return StatusCode(StatusCodes.Status201Created, transaction);
+        return Accepted(operation);
     }
 }

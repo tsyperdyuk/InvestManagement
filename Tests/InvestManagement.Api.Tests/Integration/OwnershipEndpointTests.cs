@@ -70,7 +70,7 @@ public sealed class OwnershipEndpointTests : IAsyncLifetime
         var portfolioId = await CreatePortfolioAsync(_owner);
         var path = $"/api/portfolios/{portfolioId}/transactions";
         var deposit = await _owner.PostAsJsonAsync($"{path}/deposit", new { Amount = 100m });
-        Assert.Equal(HttpStatusCode.Created, deposit.StatusCode);
+        Assert.Equal(HttpStatusCode.Accepted, deposit.StatusCode);
 
         foreach (var operation in new[] { "deposit", "withdraw" })
         {
@@ -85,7 +85,7 @@ public sealed class OwnershipEndpointTests : IAsyncLifetime
         }
 
         var details = await _owner.GetFromJsonAsync<JsonElement>($"/api/portfolios/{portfolioId}/details");
-        Assert.Equal(100m, details.GetProperty("cashBalance").GetDecimal());
+        Assert.Equal(0m, details.GetProperty("cashBalance").GetDecimal());
     }
 
     [Fact]
